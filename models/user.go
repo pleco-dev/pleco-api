@@ -3,10 +3,11 @@ package models
 import "gorm.io/gorm"
 
 type User struct {
-  gorm.Model
-  Name     string
-  Email    string `gorm:"unique"`
-  Password string
-  Role     string // user / admin
-  RefreshToken string
+	gorm.Model
+	ID           uint
+	Name         string
+	Email        string `gorm:"unique"`
+	Password     string
+	Role         string // user / admin
+	RefreshToken string
 }

@@ -1,9 +1,10 @@
 package routes
 
 import (
+	"go-auth-app/controllers"
 	"go-auth-app/middleware"
 	"go-auth-app/repositories"
-	"go-auth-app/controllers"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,6 +13,8 @@ func SetupRoutes(router *gin.Engine) {
 	authController := controllers.AuthController{
 		UserRepo: repo,
 	}
+	userController := controllers.UserController{UserRepo: repo}
+
 	api := router.Group("/api")
 
 	// Public
@@ -29,6 +32,8 @@ func SetupRoutes(router *gin.Engine) {
 	// Admin only
 	admin := protected.Group("/admin")
 	admin.Use(middleware.AdminOnly())
+	admin.GET("/dashboard", authController.Dashboard)
+	admin.GET("/users", userController.GetAllUsers)
+	admin.DELETE("/users/:id", userController.DeleteUser)
 
-		admin.GET("/dashboard", authController.Dashboard)
 }

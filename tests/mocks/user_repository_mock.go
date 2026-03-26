@@ -42,3 +42,19 @@ func (m *MockUserRepo) Update(user *models.User) error {
 	m.User = user
 	return nil
 }
+
+func (m *MockUserRepo) FindAll() ([]models.User, error) {
+	if m.User == nil {
+		return []models.User{}, nil
+	}
+	return []models.User{*m.User}, nil
+}
+
+func (m *MockUserRepo) Delete(id uint) error {
+	// Minimal stub for unit tests.
+	// In tests that need this behavior, you can extend it to track calls/ids.
+	if m.User != nil && m.User.ID == id {
+		m.User = nil
+	}
+	return nil
+}

@@ -1,9 +1,9 @@
 package middleware
 
 import (
+	"fmt"
 	"go-auth-app/config"
 	"go-auth-app/models"
-	"os"
 	"strings"
 	"time"
 
@@ -11,34 +11,64 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtKey = []byte(os.Getenv("JWT_SECRET"))
-
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 
 		if authHeader == "" {
-			c.AbortWithStatus(401)
+			c.AbortWithStatusJSON(401, gin.H{"error": "Missing Authorization header"})
 			return
 		}
 
+		// ✅ harus "Bearer xxx"
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		if tokenString == "" {
-			c.AbortWithStatus(401)
+		if tokenString == authHeader {
+			c.AbortWithStatusJSON(401, gin.H{"error": "Invalid token format"})
 			return
 		}
 
-		token, _ := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return jwtKey, nil
+		if tokenString == "" || tokenString == "null" || tokenString == "undefined" {
+			c.AbortWithStatusJSON(401, gin.H{"error": "Token is missing or invalid"})
+			return
+		}
+
+		// ✅ parse token
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// ✅ VALIDASI signing method
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method")
+			}
+			return config.JWTSecret, nil
 		})
-		claims := token.Claims.(jwt.MapClaims)
 
-		// convert float64 → uint
-		userIDFloat := claims["user_id"].(float64)
-		userID := uint(userIDFloat)
+		if err != nil || !token.Valid {
+			c.AbortWithStatusJSON(401, gin.H{"error": "Invalid token"})
+			return
+		}
 
-		c.Set("user_id", userID)
-		c.Set("role", claims["role"])
+		// ✅ ambil claims
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			c.AbortWithStatusJSON(401, gin.H{"error": "Invalid claims"})
+			return
+		}
+
+		// ✅ safe parsing
+		userIDFloat, ok := claims["user_id"].(float64)
+		if !ok {
+			c.AbortWithStatusJSON(401, gin.H{"error": "Invalid user_id"})
+			return
+		}
+
+		role, ok := claims["role"].(string)
+		if !ok {
+			c.AbortWithStatusJSON(401, gin.H{"error": "Invalid role"})
+			return
+		}
+
+		c.Set("user_id", uint(userIDFloat))
+		c.Set("role", role)
+
 		c.Next()
 	}
 }
@@ -56,7 +86,7 @@ func RefreshToken(c *gin.Context) {
 
 	// Parse token
 	token, err := jwt.Parse(body.RefreshToken, func(token *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
+		return config.JWTSecret, nil
 	})
 
 	if err != nil || !token.Valid {
@@ -93,7 +123,7 @@ func RefreshToken(c *gin.Context) {
 		"exp":     time.Now().Add(time.Minute * 15).Unix(),
 	})
 
-	accessTokenString, _ := newAccessToken.SignedString(jwtKey)
+	accessTokenString, _ := newAccessToken.SignedString(config.JWTSecret)
 
 	// (Optional tapi recommended 🔥)
 	// 🔄 Rotate refresh token
@@ -103,7 +133,7 @@ func RefreshToken(c *gin.Context) {
 		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(),
 	})
 
-	refreshTokenString, _ := newRefreshToken.SignedString(jwtKey)
+	refreshTokenString, _ := newRefreshToken.SignedString(config.JWTSecret)
 
 	// Simpan refresh token baru ke DB
 	user.RefreshToken = refreshTokenString

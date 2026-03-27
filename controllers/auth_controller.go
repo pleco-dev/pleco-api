@@ -3,17 +3,17 @@ package controllers
 import (
 	"go-auth-app/dto"
 	"go-auth-app/models"
-	"go-auth-app/repositories"
+	"go-auth-app/services"
+	"go-auth-app/utils"
+
 	"os"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthController struct {
-	UserRepo repositories.UserRepository
+	AuthService *services.AuthService
 }
 
 var jwtKey = []byte(os.Getenv("JWT_SECRET"))
@@ -35,7 +35,7 @@ func (a *AuthController) Register(c *gin.Context) {
 		Role:     "user",
 	}
 
-	err := a.UserRepo.Create(&user)
+	err := a.AuthService.Register(&user, input.Password)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to create user"})
 		return
@@ -48,90 +48,44 @@ func (a *AuthController) Login(c *gin.Context) {
 	var input dto.LoginRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid input"})
+		utils.ValidationError(c, utils.FormatValidationError(err))
 		return
 	}
 
-	user, err := a.UserRepo.FindByEmail(input.Email)
+	tokens, err := a.AuthService.Login(input.Email, input.Password)
 	if err != nil {
-		c.JSON(401, gin.H{"error": "User not found"})
+		utils.Error(c, 401, "Invalid credentials")
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password))
-	if err != nil {
-		c.JSON(401, gin.H{"error": "Invalid credentials"})
-		return
-	}
-
-	// generate token (tetap sama seperti sebelumnya)
-
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"role":    user.Role,
-		"exp":     time.Now().Add(time.Minute * 15).Unix(),
-	})
-
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"role":    user.Role,
-		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(),
-	})
-
-	accessTokenString, _ := accessToken.SignedString(jwtKey)
-	refreshTokenString, _ := refreshToken.SignedString(jwtKey)
-
-	// simpan refresh token via repo
-	user.RefreshToken = refreshTokenString
-	a.UserRepo.Update(user)
-
-	c.JSON(200, gin.H{
-		"access_token":  accessTokenString,
-		"refresh_token": refreshTokenString,
-	})
+	utils.Success(c, tokens, nil)
 }
 
 func (a *AuthController) Logout(c *gin.Context) {
-	userID, _ := c.Get("user_id")
-
-	user, err := a.UserRepo.FindByID(userID.(uint))
-	if err != nil {
-		c.JSON(404, gin.H{"error": "User not found"})
-		return
-	}
-
-	user.RefreshToken = ""
-	a.UserRepo.Update(user)
-
-	c.JSON(200, gin.H{"message": "Logged out"})
-}
-
-func (a *AuthController) Profile(c *gin.Context) {
-	userID, exists := c.Get("user_id")
-
+	userIDVal, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	// ambil user dari repository
-	user, err := a.UserRepo.FindByID(userID.(uint))
-	if err != nil {
-		c.JSON(404, gin.H{"error": "User not found"})
+	userID := userIDVal.(uint)
+
+	var body struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
-	// response (hindari kirim password!)
-	c.JSON(200, gin.H{
-		"id":    user.ID,
-		"name":  user.Name,
-		"email": user.Email,
-		"role":  user.Role,
-	})
-}
+	err := a.AuthService.Logout(userID, body.RefreshToken)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
 
-func (a *AuthController) Dashboard(c *gin.Context) {
-	c.JSON(200, gin.H{"message": "Admin dashboard"})
+	c.JSON(200, gin.H{"message": "Logged out successfully"})
 }
 
 func (a *AuthController) RefreshToken(c *gin.Context) {

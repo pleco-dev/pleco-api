@@ -4,10 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
-	"runtime"
 
-	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
@@ -17,7 +14,7 @@ import (
 var DB *gorm.DB
 
 func ConnectDB() {
-	loadDotEnv()
+	// loadDotEnv()
 
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
@@ -42,20 +39,20 @@ func ConnectDB() {
 	DB = database
 }
 
-func loadDotEnv() {
-	// First try the default behavior (current working directory).
-	if err := godotenv.Load(); err == nil {
-		return
-	}
+// func loadDotEnv() {
+// 	// First try the default behavior (current working directory).
+// 	if err := godotenv.Load(); err == nil {
+// 		return
+// 	}
 
-	// Then try loading from the project root (one directory above `config/`).
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		return
-	}
-	rootDir := filepath.Dir(filepath.Dir(thisFile))
-	_ = godotenv.Load(filepath.Join(rootDir, ".env"))
-}
+// 	// Then try loading from the project root (one directory above `config/`).
+// 	_, thisFile, _, ok := runtime.Caller(0)
+// 	if !ok {
+// 		return
+// 	}
+// 	rootDir := filepath.Dir(filepath.Dir(thisFile))
+// 	_ = godotenv.Load(filepath.Join(rootDir, ".env"))
+// }
 
 func getEnv(key, fallback string) string {
 	value := os.Getenv(key)

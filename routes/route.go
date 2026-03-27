@@ -4,36 +4,58 @@ import (
 	"go-auth-app/controllers"
 	"go-auth-app/middleware"
 	"go-auth-app/repositories"
+	"go-auth-app/services"
 
 	"github.com/gin-gonic/gin"
 )
 
 func SetupRoutes(router *gin.Engine) {
-	repo := &repositories.UserRepoDB{}
-	authController := controllers.AuthController{
-		UserRepo: repo,
+
+	// ✅ Repository
+	userRepo := &repositories.UserRepoDB{}
+
+	// ✅ Service
+	authService := &services.AuthService{
+		UserRepo: userRepo,
 	}
-	userController := controllers.UserController{UserRepo: repo}
+
+	userService := &services.UserService{
+		UserRepo: userRepo,
+	}
+
+	// ✅ Controller (pakai service, bukan repo lagi)
+	authController := controllers.AuthController{
+		AuthService: authService,
+	}
+
+	userController := controllers.UserController{
+		UserService: userService,
+	}
 
 	api := router.Group("/api")
 
-	// Public
+	// ========================
+	// 🔓 PUBLIC ROUTES
+	// ========================
 	api.POST("/register", authController.Register)
 	api.POST("/login", authController.Login)
 	api.POST("/refresh", middleware.RefreshToken)
 
-	// Protected
+	// ========================
+	// 🔐 PROTECTED ROUTES
+	// ========================
 	protected := api.Group("/")
 	protected.Use(middleware.AuthMiddleware())
 
-	protected.GET("/profile", authController.Profile)
-	protected.POST("/logout", middleware.AuthMiddleware(), authController.Logout)
+	protected.GET("/profile", userController.Profile)
+	protected.POST("/logout", authController.Logout)
 
-	// Admin only
+	// ========================
+	// 👑 ADMIN ROUTES
+	// ========================
 	admin := protected.Group("/admin")
 	admin.Use(middleware.AdminOnly())
-	admin.GET("/dashboard", authController.Dashboard)
+
 	admin.GET("/users", userController.GetAllUsers)
 	admin.DELETE("/users/:id", userController.DeleteUser)
-
 }

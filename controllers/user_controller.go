@@ -3,13 +3,13 @@ package controllers
 import (
 	"fmt"
 	"go-auth-app/dto"
-	"go-auth-app/repositories"
+	"go-auth-app/services"
 
 	"github.com/gin-gonic/gin"
 )
 
 type UserController struct {
-	UserRepo repositories.UserRepository
+	UserService *services.UserService
 }
 
 func (u *UserController) GetAllUsers(c *gin.Context) {
@@ -28,7 +28,7 @@ func (u *UserController) GetAllUsers(c *gin.Context) {
 	search := c.Query("search")
 	role := c.Query("role")
 
-	users, total, err := u.UserRepo.FindAllWithFilter(page, limit, search, role)
+	users, total, err := u.UserService.GetAllUsers(page, limit, search, role)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to fetch users"})
 		return
@@ -63,11 +63,35 @@ func (u *UserController) DeleteUser(c *gin.Context) {
 	var id uint
 	fmt.Sscanf(idParam, "%d", &id)
 
-	err := u.UserRepo.Delete(id)
+	err := u.UserService.DeleteUser(id)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed"})
 		return
 	}
 
 	c.JSON(200, gin.H{"message": "Deleted"})
+}
+
+func (a *UserController) Profile(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+
+	if !exists {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// ambil user dari repository
+	user, err := a.UserService.GetProfile(userID.(uint))
+	if err != nil {
+		c.JSON(404, gin.H{"error": "User not found"})
+		return
+	}
+
+	// response (hindari kirim password!)
+	c.JSON(200, gin.H{
+		"id":    user.ID,
+		"name":  user.Name,
+		"email": user.Email,
+		"role":  user.Role,
+	})
 }

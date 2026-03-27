@@ -1,13 +1,15 @@
 package controllers
 
-import (	
+import (
+	"go-auth-app/dto"
 	"go-auth-app/models"
-	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
-	"os"
-	"github.com/golang-jwt/jwt/v5"
-	"time"
 	"go-auth-app/repositories"
+	"os"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthController struct {
@@ -17,19 +19,23 @@ type AuthController struct {
 var jwtKey = []byte(os.Getenv("JWT_SECRET"))
 
 func (a *AuthController) Register(c *gin.Context) {
-	var input models.User
+	var input dto.RegisterRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid input"})
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.Password), 14)
 
-	input.Password = string(hashedPassword)
-	input.Role = "user"
+	user := models.User{
+		Name:     input.Name,
+		Email:    input.Email,
+		Password: string(hashedPassword),
+		Role:     "user",
+	}
 
-	err := a.UserRepo.Create(&input)
+	err := a.UserRepo.Create(&user)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to create user"})
 		return
@@ -39,7 +45,7 @@ func (a *AuthController) Register(c *gin.Context) {
 }
 
 func (a *AuthController) Login(c *gin.Context) {
-	var input models.User
+	var input dto.LoginRequest
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(400, gin.H{"error": "Invalid input"})

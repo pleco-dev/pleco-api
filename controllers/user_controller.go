@@ -45,8 +45,10 @@ func (u *UserController) GetAllUsers(c *gin.Context) {
 		})
 	}
 
+	response := dto.ToUserResponseList(users)
+
 	c.JSON(200, gin.H{
-		"data": result,
+		"data": response,
 		"meta": gin.H{
 			"page":  page,
 			"limit": limit,

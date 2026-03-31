@@ -8,7 +8,7 @@ import (
 // EmailVerificationTokenRepoDB implements EmailVerificationTokenRepository using a global DB instance.
 type EmailVerificationTokenRepoDB struct{}
 
-func NewEmailVerificationTokenRepo() *EmailVerificationTokenRepoDB {
+func NewEmailVerificationTokenRepo() EmailVerificationTokenRepository {
 	return &EmailVerificationTokenRepoDB{}
 }
 

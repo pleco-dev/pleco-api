@@ -17,6 +17,8 @@ func main() {
 
 	config.DB.AutoMigrate(&models.RefreshToken{})
 
+	config.DB.AutoMigrate(&models.EmailVerificationToken{})
+
 	// Seed admin
 	config.SeedAdmin()
 

@@ -10,4 +10,5 @@ type User struct {
 	Password     string `json:"-"`
 	Role         string // user / admin
 	RefreshToken string
+	IsVerified   bool
 }

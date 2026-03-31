@@ -11,18 +11,18 @@ import (
 )
 
 func SetupRoutes(router *gin.Engine) {
-	repo := &repositories.UserRepoDB{}
-
-	jwtService := services.NewJWTService(config.JWTSecret)
-
 	userRepo := &repositories.UserRepoDB{}
-
 	refreshTokenRepo := repositories.NewRefreshTokenRepo()
+	emailVerificationRepo := repositories.NewEmailVerificationTokenRepo()
+	jwtService := services.NewJWTService(config.JWTSecret)
+	emailSvc := services.NewEmailService()
 
 	authService := &services.AuthService{
-		UserRepo:         repo,
-		JWT:              jwtService,
-		RefreshTokenRepo: refreshTokenRepo,
+		UserRepo:              userRepo,
+		JWT:                   jwtService,
+		RefreshTokenRepo:      refreshTokenRepo,
+		EmailVerificationRepo: emailVerificationRepo,
+		EmailSvc:              emailSvc,
 	}
 
 	userService := &services.UserService{

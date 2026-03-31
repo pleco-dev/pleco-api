@@ -2,19 +2,23 @@ package services
 
 import (
 	"errors"
+	"log"
 
 	"go-auth-app/models"
 	"go-auth-app/repositories"
 	"go-auth-app/utils"
 	"time"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService struct {
-	UserRepo         repositories.UserRepository
-	RefreshTokenRepo repositories.RefreshTokenRepository
-	JWT              *JWTService
+	UserRepo              repositories.UserRepository
+	RefreshTokenRepo      repositories.RefreshTokenRepository
+	EmailVerificationRepo repositories.EmailVerificationTokenRepository
+	JWT                   *JWTService
+	EmailSvc              *EmailService
 }
 
 type AuthTokens struct {
@@ -28,14 +32,45 @@ const (
 )
 
 func (s *AuthService) Register(user *models.User, password string) error {
-	// hash password
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	// Hash the password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	if err != nil {
 		return err
 	}
-	user.Password = string(hash)
+
+	user.Password = string(hashedPassword)
 	user.Role = "user"
-	return s.UserRepo.Create(user)
+	user.IsVerified = false
+
+	// Save the user to the repository first (so user.ID is set for tokens)
+	if err := s.UserRepo.Create(user); err != nil {
+		return err
+	}
+
+	// Generate email verification token
+	verificationToken := uuid.NewString()
+	verificationRecord := &models.EmailVerificationToken{
+		UserID:    user.ID,
+		Token:     verificationToken,
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+		CreatedAt: time.Now(),
+	}
+
+	// Save email verification token to DB for validation
+
+	if err := s.EmailVerificationRepo.Create(verificationRecord); err != nil {
+		log.Printf("failed to save email verification token for %s: %v", user.Email, err)
+	}
+
+	// Attempt to send verification email, if fail delete existing user
+	err = s.EmailSvc.SendVerificationEmail(user.Email, verificationToken)
+	if err != nil {
+		log.Printf("failed to send verification email to %s: %v, deleting user...", user.Email, err)
+		_ = s.UserRepo.Delete(user.ID)
+		return err
+	}
+
+	return nil
 }
 
 func (s *AuthService) Login(email, password, deviceID, userAgent, ipAddress string) (*AuthTokens, error) {

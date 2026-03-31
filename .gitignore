@@ -1,0 +1,28 @@
+# Golang
+/bin/
+/bin
+/build/
+/build
+/dist/
+/dist
+*.exe
+*.test
+*.out
+
+# Env files
+.env
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+
+# Dependency directories
+vendor/
+
+# OS files
+.DS_Store
+Thumbs.db

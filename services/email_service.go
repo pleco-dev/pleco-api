@@ -11,6 +11,7 @@ import (
 // EmailService defines methods for sending emails (interface)
 type EmailService interface {
 	SendVerificationEmail(toEmail, token string) error
+	SendPasswordReset(toEmail, token string) error
 }
 
 // emailService implements EmailService interface
@@ -48,4 +49,60 @@ func (s *emailService) SendVerificationEmail(toEmail, token string) error {
 	_, err := client.Send(message)
 
 	return err
+}
+
+func (s *emailService) SendPasswordReset(toEmail string, token string) error {
+	link := fmt.Sprintf("http://localhost:8080/reset?token=%s", token)
+
+	from := mail.NewEmail("Go App", s.from)
+	subject := "Password Reset Request"
+	to := mail.NewEmail("", toEmail)
+
+	plainText := fmt.Sprintf(
+		"We received a password reset request for your account. If you did not make this request, you can ignore this email.\n\nTo reset your password, please visit the following link:\n%s\n\nThis link will expire in 15 minutes.",
+		link,
+	)
+	htmlContent := fmt.Sprintf(`
+		<strong>Password reset request</strong><br>
+		We received a password reset request for your account.<br>
+		If you did not make this request, you can ignore this email.<br><br>
+		To reset your password, please click the following link:<br>
+		<a href="%s">Reset Password</a><br><br>
+		This link will expire in 15 minutes.
+	`, link)
+
+	message := mail.NewSingleEmail(from, subject, to, plainText, htmlContent)
+	client := sendgrid.NewSendClient(s.apiKey)
+	response, err := client.Send(message)
+
+	// If the email is deferred, log the response and return an appropriate error
+	if response != nil && response.StatusCode >= 400 {
+		// SendGrid docs: 400-level or 202? Defer is often a 202 but with 'deferred' in the X-SMTPAPI header or reason
+		// Check headers for defer details
+		if deferredReasonList, ok := response.Headers["X-SG-Message"]; ok && len(deferredReasonList) > 0 && deferredReasonList[0] != "" {
+			// This is not standard, usually deferred is known client-side from response.Body or SMTP events
+			// But logging the body for analysis might help
+			fmt.Printf("SendGrid deferred response: %v\nBody: %v\n", response.StatusCode, response.Body)
+		}
+
+		// Example: response.Body may contain "deferred" word
+		if response.Body != "" && (containsIgnoreCase(response.Body, "deferred") || containsIgnoreCase(response.Body, "temporarily unable")) {
+			return fmt.Errorf("email delivery deferred by SendGrid: %s", response.Body)
+		}
+
+		// General error return
+		return fmt.Errorf("failed to send email: status=%d, body=%s", response.StatusCode, response.Body)
+	} else if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// containsIgnoreCase checks if substr is in s (case-insensitive)
+func containsIgnoreCase(s, substr string) bool {
+	return len(s) >= len(substr) && (len(substr) == 0 || (s != "" && substr != "" &&
+		(len(s) == len(substr) && (s == substr || (len(s) > 0 && len(substr) > 0 &&
+			containsIgnoreCase(s[1:], substr))))) ||
+		(len(s) > 0 && (s[0]|32) == (substr[0]|32) && containsIgnoreCase(s[1:], substr[1:])))
 }

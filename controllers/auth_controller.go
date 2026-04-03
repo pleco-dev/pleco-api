@@ -152,3 +152,43 @@ func (a *AuthController) ResendVerification(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Verification email resent"})
 }
+
+func (a *AuthController) ForgotPassword(c *gin.Context) {
+
+	var body struct {
+		Email string `json:"email"`
+	}
+
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"error": "invalid request"})
+		return
+	}
+
+	err := a.AuthService.ForgotPassword(body.Email)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "reset link sent"})
+}
+
+func (a *AuthController) ResetPassword(c *gin.Context) {
+	var body struct {
+		Token       string `json:"token"`
+		NewPassword string `json:"new_password"`
+	}
+
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"error": "invalid request"})
+		return
+	}
+
+	err := a.AuthService.ResetPassword(body.Token, body.NewPassword)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "password updated"})
+}

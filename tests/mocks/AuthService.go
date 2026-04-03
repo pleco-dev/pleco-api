@@ -15,6 +15,24 @@ type AuthService struct {
 	mock.Mock
 }
 
+// ForgotPassword provides a mock function with given fields: email
+func (_m *AuthService) ForgotPassword(email string) error {
+	ret := _m.Called(email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ForgotPassword")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(email)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // GetProfile provides a mock function with given fields: userID
 func (_m *AuthService) GetProfile(userID uint) (*models.User, error) {
 	ret := _m.Called(userID)
@@ -152,6 +170,24 @@ func (_m *AuthService) ResendVerification(email string) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string) error); ok {
 		r0 = rf(email)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// ResetPassword provides a mock function with given fields: token, newPassword
+func (_m *AuthService) ResetPassword(token string, newPassword string) error {
+	ret := _m.Called(token, newPassword)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResetPassword")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(token, newPassword)
 	} else {
 		r0 = ret.Error(0)
 	}

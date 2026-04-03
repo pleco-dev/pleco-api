@@ -21,12 +21,15 @@ type AuthService interface {
 	GetProfile(userID uint) (*models.User, error)
 	ResendVerification(email string) error
 	VerifyEmail(token string) error
+	ForgotPassword(email string) error
+	ResetPassword(token string, newPassword string) error
 }
 
 type authService struct {
 	UserRepo              repositories.UserRepository
 	RefreshTokenRepo      repositories.RefreshTokenRepository
 	EmailVerificationRepo repositories.EmailVerificationTokenRepository
+	PasswordResetRepo     repositories.PasswordResetRepository
 	JWT                   *JWTService
 	EmailSvc              EmailService
 }
@@ -47,6 +50,7 @@ func NewAuthService(
 	userRepo repositories.UserRepository,
 	refreshRepo repositories.RefreshTokenRepository,
 	emailRepo repositories.EmailVerificationTokenRepository,
+	resetRepo repositories.PasswordResetRepository,
 	jwt *JWTService,
 	emailSvc EmailService,
 ) AuthService {
@@ -54,6 +58,7 @@ func NewAuthService(
 		UserRepo:              userRepo,
 		RefreshTokenRepo:      refreshRepo,
 		EmailVerificationRepo: emailRepo,
+		PasswordResetRepo:     resetRepo,
 		JWT:                   jwt,
 		EmailSvc:              emailSvc,
 	}
@@ -290,4 +295,58 @@ func (s *authService) VerifyEmail(token string) error {
 	_ = s.EmailVerificationRepo.DeleteByID(verification.ID)
 
 	return nil
+}
+
+func (s *authService) ForgotPassword(email string) error {
+	user, err := s.UserRepo.FindByEmail(email)
+	if err != nil {
+		return errors.New("email not found")
+	}
+
+	token := generateResetToken()
+
+	reset := &models.PasswordResetToken{
+		UserID:    user.ID,
+		Token:     token,
+		ExpiresAt: time.Now().Add(15 * time.Minute),
+	}
+
+	err = s.PasswordResetRepo.Create(reset)
+	if err != nil {
+		return err
+	}
+
+	return s.EmailSvc.SendPasswordReset(user.Email, token)
+}
+
+func (s *authService) ResetPassword(token string, newPassword string) error {
+	reset, err := s.PasswordResetRepo.FindByToken(token)
+	if err != nil {
+		return errors.New("invalid token")
+	}
+
+	if time.Now().After(reset.ExpiresAt) {
+		return errors.New("token expired")
+	}
+
+	hashed, _ := bcrypt.GenerateFromPassword([]byte(newPassword), 14)
+
+	user, err := s.UserRepo.FindByID(reset.UserID)
+	if err != nil {
+		return err
+	}
+	user.Password = string(hashed)
+	err = s.UserRepo.Update(user)
+	if err != nil {
+		return err
+	}
+
+	// delete token biar tidak reuse
+	_ = s.PasswordResetRepo.Delete(token)
+
+	return nil
+}
+
+func generateResetToken() string {
+	return uuid.NewString()
 }

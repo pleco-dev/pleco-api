@@ -57,3 +57,16 @@ func (j *JWTService) ValidateToken(tokenString string) (jwt.MapClaims, error) {
 
 	return claims, nil
 }
+
+func (j *JWTService) GenerateCustomClaimsToken(claims map[string]interface{}, duration time.Duration) (string, error) {
+	// Copy claims so we don't mutate input map
+	cpy := jwt.MapClaims{}
+	for k, v := range claims {
+		cpy[k] = v
+	}
+	cpy["exp"] = time.Now().Add(duration).Unix()
+	cpy["iat"] = time.Now().Unix()
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, cpy)
+	return token.SignedString(j.Secret)
+}

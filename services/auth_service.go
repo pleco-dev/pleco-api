@@ -9,6 +9,7 @@ import (
 	"go-auth-app/utils"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -29,7 +30,6 @@ type authService struct {
 	UserRepo              repositories.UserRepository
 	RefreshTokenRepo      repositories.RefreshTokenRepository
 	EmailVerificationRepo repositories.EmailVerificationTokenRepository
-	PasswordResetRepo     repositories.PasswordResetRepository
 	JWT                   *JWTService
 	EmailSvc              EmailService
 }
@@ -50,7 +50,6 @@ func NewAuthService(
 	userRepo repositories.UserRepository,
 	refreshRepo repositories.RefreshTokenRepository,
 	emailRepo repositories.EmailVerificationTokenRepository,
-	resetRepo repositories.PasswordResetRepository,
 	jwt *JWTService,
 	emailSvc EmailService,
 ) AuthService {
@@ -58,7 +57,6 @@ func NewAuthService(
 		UserRepo:              userRepo,
 		RefreshTokenRepo:      refreshRepo,
 		EmailVerificationRepo: emailRepo,
-		PasswordResetRepo:     resetRepo,
 		JWT:                   jwt,
 		EmailSvc:              emailSvc,
 	}
@@ -303,15 +301,7 @@ func (s *authService) ForgotPassword(email string) error {
 		return errors.New("email not found")
 	}
 
-	token := generateResetToken()
-
-	reset := &models.PasswordResetToken{
-		UserID:    user.ID,
-		Token:     token,
-		ExpiresAt: time.Now().Add(15 * time.Minute),
-	}
-
-	err = s.PasswordResetRepo.Create(reset)
+	token, err := s.generateResetToken(user.ID, user.Email)
 	if err != nil {
 		return err
 	}
@@ -319,34 +309,51 @@ func (s *authService) ForgotPassword(email string) error {
 	return s.EmailSvc.SendPasswordReset(user.Email, token)
 }
 
-func (s *authService) ResetPassword(token string, newPassword string) error {
-	reset, err := s.PasswordResetRepo.FindByToken(token)
-	if err != nil {
+func (s *authService) ResetPassword(tokenString string, newPassword string) error {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return s.JWT.Secret, nil
+	})
+
+	if err != nil || !token.Valid {
+		return errors.New("invalid or expired token")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
 		return errors.New("invalid token")
 	}
 
-	if time.Now().After(reset.ExpiresAt) {
-		return errors.New("token expired")
+	// cek purpose
+	if claims["purpose"] != "password_reset" {
+		return errors.New("invalid token purpose")
+	}
+
+	userID := uint(claims["user_id"].(float64))
+
+	user, err := s.UserRepo.FindByID(userID)
+	if err != nil {
+		return err
+	}
+
+	// 🔥 optional tapi penting (invalidate token lama)
+	if user.PasswordUpdatedAt.Unix() > int64(claims["iat"].(float64)) {
+		return errors.New("token already invalid")
 	}
 
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(newPassword), 14)
 
-	user, err := s.UserRepo.FindByID(reset.UserID)
-	if err != nil {
-		return err
-	}
 	user.Password = string(hashed)
-	err = s.UserRepo.Update(user)
-	if err != nil {
-		return err
-	}
+	user.PasswordUpdatedAt = time.Now()
 
-	// delete token biar tidak reuse
-	_ = s.PasswordResetRepo.Delete(token)
-
-	return nil
+	return s.UserRepo.Update(user)
 }
 
-func generateResetToken() string {
-	return uuid.NewString()
+func (s *authService) generateResetToken(userID uint, email string) (string, error) {
+	claims := map[string]interface{}{
+		"user_id": userID,
+		"email":   email,
+		"purpose": "password_reset",
+	}
+	// Use the JWT service to generate a token with 15 min expiry and a special purpose
+	return s.JWT.GenerateCustomClaimsToken(claims, 15*time.Minute)
 }

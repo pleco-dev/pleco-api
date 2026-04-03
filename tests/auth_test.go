@@ -105,7 +105,7 @@ func TestLogout_Success(t *testing.T) {
 	req.Header.Set("X-Device-ID", "web")
 	c.Request = req
 
-	// ✅ penting: key + type harus match utils
+	// Make sure user_id key and value type match requirements
 	c.Set("user_id", uint(1))
 
 	controller.Logout(c)
@@ -161,7 +161,7 @@ func TestProfile_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/profile", nil)
 	c.Request = req
 
-	c.Set("user_id", uint(1)) // ✅ penting
+	c.Set("user_id", uint(1)) // user_id as uint
 
 	controller.Profile(c)
 
@@ -209,6 +209,54 @@ func TestResendVerification_Success(t *testing.T) {
 	c.Request = req
 
 	controller.ResendVerification(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestForgotPassword_Success(t *testing.T) {
+	mockService := new(mocks.AuthService)
+
+	controller := controllers.AuthController{
+		AuthService: mockService,
+	}
+
+	body := `{"email":"test@mail.com"}`
+
+	mockService.
+		On("ForgotPassword", "test@mail.com").
+		Return(nil)
+
+	c, w := setupTest()
+
+	req := httptest.NewRequest(http.MethodPost, "/forgot", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	c.Request = req
+
+	controller.ForgotPassword(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestResetPassword_Success(t *testing.T) {
+	mockService := new(mocks.AuthService)
+
+	controller := controllers.AuthController{
+		AuthService: mockService,
+	}
+
+	body := `{"token":"token123","new_password":"newSecret123"}`
+
+	mockService.
+		On("ResetPassword", "token123", "newSecret123").
+		Return(nil)
+
+	c, w := setupTest()
+
+	req := httptest.NewRequest(http.MethodPost, "/reset", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	c.Request = req
+
+	controller.ResetPassword(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 }

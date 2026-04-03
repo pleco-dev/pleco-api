@@ -1,14 +1,19 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type User struct {
 	gorm.Model
-	ID           uint
-	Name         string
-	Email        string `gorm:"unique"`
-	Password     string `json:"-"`
-	Role         string // user / admin
-	RefreshToken string
-	IsVerified   bool
+	ID                uint
+	Name              string
+	Email             string `gorm:"unique"`
+	Password          string `json:"-"`
+	Role              string // user / admin
+	RefreshToken      string
+	IsVerified        bool
+	PasswordUpdatedAt time.Time
 }

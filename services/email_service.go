@@ -75,25 +75,13 @@ func (s *emailService) SendPasswordReset(toEmail string, token string) error {
 	client := sendgrid.NewSendClient(s.apiKey)
 	response, err := client.Send(message)
 
-	// If the email is deferred, log the response and return an appropriate error
-	if response != nil && response.StatusCode >= 400 {
-		// SendGrid docs: 400-level or 202? Defer is often a 202 but with 'deferred' in the X-SMTPAPI header or reason
-		// Check headers for defer details
-		if deferredReasonList, ok := response.Headers["X-SG-Message"]; ok && len(deferredReasonList) > 0 && deferredReasonList[0] != "" {
-			// This is not standard, usually deferred is known client-side from response.Body or SMTP events
-			// But logging the body for analysis might help
-			fmt.Printf("SendGrid deferred response: %v\nBody: %v\n", response.StatusCode, response.Body)
-		}
-
-		// Example: response.Body may contain "deferred" word
-		if response.Body != "" && (containsIgnoreCase(response.Body, "deferred") || containsIgnoreCase(response.Body, "temporarily unable")) {
-			return fmt.Errorf("email delivery deferred by SendGrid: %s", response.Body)
-		}
-
-		// General error return
-		return fmt.Errorf("failed to send email: status=%d, body=%s", response.StatusCode, response.Body)
-	} else if err != nil {
+	if err != nil {
 		return err
+	}
+
+	// SendGrid marks success by status 202, errors are 4xx/5xx
+	if response != nil && response.StatusCode >= 400 {
+		return fmt.Errorf("failed to send email: status=%d, body=%s", response.StatusCode, response.Body)
 	}
 
 	return nil

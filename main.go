@@ -19,8 +19,6 @@ func main() {
 
 	config.DB.AutoMigrate(&models.EmailVerificationToken{})
 
-	config.DB.AutoMigrate(&models.PasswordResetToken{})
-
 	// Seed admin
 	config.SeedAdmin()
 

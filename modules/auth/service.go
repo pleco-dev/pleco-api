@@ -1,12 +1,15 @@
-package services
+package auth
 
 import (
 	"context"
 	"errors"
 	"log"
 
-	"go-auth-app/models"
-	"go-auth-app/repositories"
+	"go-auth-app/config"
+	permissionless "go-auth-app/modules/social"
+	tokenModule "go-auth-app/modules/token"
+	userModule "go-auth-app/modules/user"
+	"go-auth-app/services"
 	"go-auth-app/utils"
 	"time"
 
@@ -17,11 +20,11 @@ import (
 )
 
 type AuthService interface {
-	Register(user *models.User, password string) error
+	Register(user *userModule.User, password string) error
 	Login(email, password, deviceID, userAgent, ipAddress string) (*AuthTokens, error)
 	Logout(userID uint, deviceID string) error
 	RefreshToken(oldRefreshToken string) (*AuthTokens, error)
-	GetProfile(userID uint) (*models.User, error)
+	GetProfile(userID uint) (*userModule.User, error)
 	ResendVerification(email string) error
 	VerifyEmail(token string) error
 	ForgotPassword(email string) error
@@ -30,12 +33,12 @@ type AuthService interface {
 }
 
 type authService struct {
-	UserRepo              repositories.UserRepository
-	RefreshTokenRepo      repositories.RefreshTokenRepository
-	EmailVerificationRepo repositories.EmailVerificationTokenRepository
-	SocialRepo            repositories.SocialAccountRepository
-	JWT                   *JWTService
-	EmailSvc              EmailService
+	UserRepo              userModule.Repository
+	RefreshTokenRepo      tokenModule.RefreshTokenRepository
+	EmailVerificationRepo tokenModule.EmailVerificationRepository
+	SocialRepo            permissionless.Repository
+	JWT                   *services.JWTService
+	EmailSvc              services.EmailService
 }
 
 var _ AuthService = (*authService)(nil)
@@ -50,13 +53,31 @@ const (
 	TokenRefresh = "refresh"
 )
 
+func NewService(_ AuthRepository, _ *userModule.Service) AuthService {
+	userRepo := userModule.NewRepository()
+	refreshTokenRepo := tokenModule.NewRefreshTokenRepository()
+	emailVerificationRepo := tokenModule.NewEmailVerificationRepository()
+	socialRepo := permissionless.NewRepository()
+	jwtService := services.NewJWTService(config.JWTSecret)
+	emailSvc := services.NewEmailService()
+
+	return NewAuthService(
+		userRepo,
+		refreshTokenRepo,
+		emailVerificationRepo,
+		socialRepo,
+		jwtService,
+		emailSvc,
+	)
+}
+
 func NewAuthService(
-	userRepo repositories.UserRepository,
-	refreshRepo repositories.RefreshTokenRepository,
-	emailRepo repositories.EmailVerificationTokenRepository,
-	socialRepo repositories.SocialAccountRepository,
-	jwt *JWTService,
-	emailSvc EmailService,
+	userRepo userModule.Repository,
+	refreshRepo tokenModule.RefreshTokenRepository,
+	emailRepo tokenModule.EmailVerificationRepository,
+	socialRepo permissionless.Repository,
+	jwt *services.JWTService,
+	emailSvc services.EmailService,
 ) AuthService {
 	return &authService{
 		UserRepo:              userRepo,
@@ -68,7 +89,7 @@ func NewAuthService(
 	}
 }
 
-func (s *authService) Register(user *models.User, password string) error {
+func (s *authService) Register(user *userModule.User, password string) error {
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	if err != nil {
@@ -86,7 +107,7 @@ func (s *authService) Register(user *models.User, password string) error {
 
 	// Generate email verification token
 	verificationToken := uuid.NewString()
-	verificationRecord := &models.EmailVerificationToken{
+	verificationRecord := &tokenModule.EmailVerificationToken{
 		UserID:    user.ID,
 		Token:     verificationToken,
 		ExpiresAt: time.Now().Add(24 * time.Hour),
@@ -134,7 +155,7 @@ func (s *authService) Login(email, password, deviceID, userAgent, ipAddress stri
 
 	tokenHash := utils.HashToken(refreshToken)
 
-	refreshTokenModel := &models.RefreshToken{
+	refreshTokenModel := &tokenModule.RefreshToken{
 		UserID:    user.ID,
 		TokenHash: tokenHash,
 		DeviceID:  deviceID,
@@ -191,7 +212,7 @@ func (s *authService) RefreshToken(oldRefreshToken string) (*AuthTokens, error) 
 	}
 	oldHash := utils.HashToken(oldRefreshToken)
 
-	var matchedToken *models.RefreshToken
+	var matchedToken *tokenModule.RefreshToken
 	for i := range tokens {
 		if tokens[i].TokenHash == oldHash {
 			matchedToken = &tokens[i]
@@ -228,7 +249,7 @@ func (s *authService) RefreshToken(oldRefreshToken string) (*AuthTokens, error) 
 	}
 
 	newHash := utils.HashToken(newRefreshToken)
-	newToken := &models.RefreshToken{
+	newToken := &tokenModule.RefreshToken{
 		UserID:    uid,
 		TokenHash: newHash,
 		DeviceID:  matchedToken.DeviceID,
@@ -246,7 +267,7 @@ func (s *authService) RefreshToken(oldRefreshToken string) (*AuthTokens, error) 
 	}, nil
 }
 
-func (s *authService) GetProfile(userID uint) (*models.User, error) {
+func (s *authService) GetProfile(userID uint) (*userModule.User, error) {
 	return s.UserRepo.FindByID(userID)
 }
 
@@ -264,7 +285,7 @@ func (s *authService) ResendVerification(email string) error {
 
 	_ = s.EmailVerificationRepo.DeleteByUserID(user.ID)
 
-	verification := &models.EmailVerificationToken{
+	verification := &tokenModule.EmailVerificationToken{
 		UserID:    user.ID,
 		Token:     token,
 		ExpiresAt: time.Now().Add(24 * time.Hour),
@@ -407,7 +428,7 @@ func (s *authService) SocialLogin(provider string, idToken string, deviceID, use
 
 	if err != nil {
 		// register baru
-		user = &models.User{
+		user = &userModule.User{
 			Email:      email,
 			Name:       name,
 			IsVerified: true,
@@ -433,7 +454,7 @@ func (s *authService) SocialLogin(provider string, idToken string, deviceID, use
 		}
 	} else {
 		// 🔥 BELUM ADA → CREATE
-		newSocial := &models.SocialAccount{
+		newSocial := &permissionless.SocialAccount{
 			UserID:         user.ID,
 			Provider:       provider,
 			ProviderUserID: providerUserID,
@@ -461,7 +482,7 @@ func (s *authService) SocialLogin(provider string, idToken string, deviceID, use
 
 	tokenHash := utils.HashToken(refreshToken)
 
-	refreshTokenModel := &models.RefreshToken{
+	refreshTokenModel := &tokenModule.RefreshToken{
 		UserID:    user.ID,
 		TokenHash: tokenHash,
 		DeviceID:  deviceID,

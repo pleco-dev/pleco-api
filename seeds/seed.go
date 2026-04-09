@@ -2,7 +2,9 @@ package seeds
 
 import (
 	"fmt"
-	"go-auth-app/models"
+	permissionModule "go-auth-app/modules/permission"
+	roleModule "go-auth-app/modules/role"
+	userModule "go-auth-app/modules/user"
 	"log"
 	"os"
 
@@ -17,15 +19,15 @@ func mustHaveDB(db *gorm.DB) {
 	}
 }
 
-func SeedRoles(db *gorm.DB) map[string]models.Role {
+func SeedRoles(db *gorm.DB) map[string]roleModule.Role {
 	mustHaveDB(db)
 
 	roleNames := []string{"superadmin", "admin", "user"}
-	roleMap := make(map[string]models.Role)
+	roleMap := make(map[string]roleModule.Role)
 
 	for _, name := range roleNames {
-		role := models.Role{Name: name}
-		if err := db.FirstOrCreate(&role, models.Role{Name: name}).Error; err != nil {
+		role := roleModule.Role{Name: name}
+		if err := db.FirstOrCreate(&role, roleModule.Role{Name: name}).Error; err != nil {
 			log.Printf("Failed to seed role %s: %v", name, err)
 			continue
 		}
@@ -35,15 +37,15 @@ func SeedRoles(db *gorm.DB) map[string]models.Role {
 	return roleMap
 }
 
-func SeedPermissions(db *gorm.DB) map[string]models.Permission {
+func SeedPermissions(db *gorm.DB) map[string]permissionModule.Permission {
 	mustHaveDB(db)
 
 	permNames := []string{"create_user", "delete_user"}
-	permMap := make(map[string]models.Permission)
+	permMap := make(map[string]permissionModule.Permission)
 
 	for _, name := range permNames {
-		perm := models.Permission{Name: name}
-		if err := db.FirstOrCreate(&perm, models.Permission{Name: name}).Error; err != nil {
+		perm := permissionModule.Permission{Name: name}
+		if err := db.FirstOrCreate(&perm, permissionModule.Permission{Name: name}).Error; err != nil {
 			log.Printf("Failed to seed permission %s: %v", name, err)
 			continue
 		}
@@ -56,7 +58,7 @@ func SeedPermissions(db *gorm.DB) map[string]models.Permission {
 func SeedAdmin(db *gorm.DB) {
 	mustHaveDB(db)
 
-	var user models.User
+	var user userModule.User
 
 	roleMap := SeedRoles(db)
 	superadminRole, ok := roleMap["superadmin"]
@@ -84,7 +86,7 @@ func SeedAdmin(db *gorm.DB) {
 			return
 		}
 
-		admin := models.User{
+		admin := userModule.User{
 			Name:       "Super Admin",
 			Email:      email,
 			Password:   string(hashedPassword),

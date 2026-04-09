@@ -11,13 +11,13 @@ import (
 
 var DB *gorm.DB
 
-func ConnectDB() {
+func ConnectDB() *gorm.DB {
 	var database *gorm.DB
 	var err error
 
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
-		GetEnv("DB_HOST", "db"), // ⬅️ default ganti
+		GetEnv("DB_HOST", "db"),
 		GetEnv("DB_USER", "postgres"),
 		GetEnv("DB_PASSWORD", "password"),
 		GetEnv("DB_NAME", "auth_db"),
@@ -41,5 +41,8 @@ func ConnectDB() {
 		log.Fatalf("❌ DB connection failed after retries: %v", err)
 	}
 
+	// optional: tetap simpan global (biar backward compatible)
 	DB = database
+
+	return database
 }

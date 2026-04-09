@@ -1,9 +1,9 @@
-package models
+package social
 
 type SocialAccount struct {
 	ID             uint
 	UserID         uint
-	Provider       string // google, github
+	Provider       string
 	ProviderUserID string
 	AvatarURL      string
 }

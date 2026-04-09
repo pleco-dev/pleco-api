@@ -8,9 +8,22 @@ type FieldError struct {
 }
 
 func FormatValidationError(err error) []FieldError {
-	var errors []FieldError
+	if err == nil {
+		return nil
+	}
 
-	for _, e := range err.(validator.ValidationErrors) {
+	var errors []FieldError
+	validationErrors, ok := err.(validator.ValidationErrors)
+	if !ok {
+		return []FieldError{
+			{
+				Field:   "request",
+				Message: err.Error(),
+			},
+		}
+	}
+
+	for _, e := range validationErrors {
 		errors = append(errors, FieldError{
 			Field:   e.Field(),
 			Message: e.Tag(), // bisa di-custom nanti

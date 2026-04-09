@@ -1,4 +1,4 @@
-package dto
+package auth
 
 type RegisterRequest struct {
 	Name     string `json:"name" binding:"required,min=3"`

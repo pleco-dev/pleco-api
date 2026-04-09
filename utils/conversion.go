@@ -2,8 +2,7 @@ package utils
 
 import (
 	"fmt"
-	"go-auth-app/dto"
-	"go-auth-app/models"
+	user "go-auth-app/modules/user"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,11 +25,11 @@ func GetUserIDFromContext(c *gin.Context) (uint, bool) {
 	}
 }
 
-// dtoToUser converts dto.RegisterRequest to models.User (excluding hashed password).
-func DtoToUser(input *dto.RegisterRequest) models.User {
-	return models.User{
-		Name:  input.Name,
-		Email: input.Email,
+// dtoToUser converts registration fields to user.User (excluding hashed password).
+func DtoToUser(name, email string) user.User {
+	return user.User{
+		Name:  name,
+		Email: email,
 		Role:  "user",
 	}
 }

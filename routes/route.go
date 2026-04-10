@@ -8,16 +8,11 @@ import (
 )
 
 func SetupRoutes(router *gin.Engine) {
-	userRepo := user.NewRepository()
-	userService := user.NewService(userRepo)
-	userHandler := user.NewHandler(userService)
+	userModule := user.BuildModule()
+	authModule := auth.BuildModule(userModule.Service)
 
-	authRepo := auth.NewRepository(nil)
-	authService := auth.NewService(authRepo, userService)
-	authHandler := auth.NewHandler(authService)
-
-	auth.SetupRoutes(router.Group("/"), authHandler)
-	user.SetupRoutes(router.Group("/"), userHandler)
+	auth.SetupRoutes(router.Group("/"), authModule.Handler)
+	user.SetupRoutes(router.Group("/"), userModule.Handler)
 
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})

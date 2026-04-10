@@ -14,25 +14,17 @@ func initApp() *gin.Engine {
 	config.InitJWT()
 
 	// Connect DB
-	db := config.ConnectDB()
-	_ = db
+	config.ConnectDB()
 
 	router := gin.Default()
 	api := router.Group("/")
 
-	// ===== USER =====
-	userRepo := user.NewRepository()
-	userService := user.NewService(userRepo)
-	userHandler := user.NewHandler(userService)
-
-	// ===== AUTH =====
-	authRepo := auth.NewRepository(db)
-	authService := auth.NewService(authRepo, userService)
-	authHandler := auth.NewHandler(authService)
+	userModule := user.BuildModule()
+	authModule := auth.BuildModule(userModule.Service)
 
 	// ===== ROUTES =====
-	auth.SetupRoutes(api, authHandler)
-	user.SetupRoutes(api, userHandler)
+	auth.SetupRoutes(api, authModule.Handler)
+	user.SetupRoutes(api, userModule.Handler)
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})

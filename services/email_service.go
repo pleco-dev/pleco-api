@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
@@ -16,8 +17,10 @@ type EmailService interface {
 
 // emailService implements EmailService interface
 type emailService struct {
-	apiKey string
-	from   string
+	apiKey      string
+	from        string
+	appBaseURL  string
+	frontendURL string
 }
 
 var _ EmailService = (*emailService)(nil)
@@ -25,13 +28,15 @@ var _ EmailService = (*emailService)(nil)
 // NewEmailService returns a new emailService as EmailService
 func NewEmailService() EmailService {
 	return &emailService{
-		apiKey: os.Getenv("SENDGRID_API_KEY"),
-		from:   os.Getenv("SENDGRID_EMAIL"),
+		apiKey:      os.Getenv("SENDGRID_API_KEY"),
+		from:        os.Getenv("SENDGRID_EMAIL"),
+		appBaseURL:  firstNonEmpty(os.Getenv("APP_BASE_URL"), os.Getenv("RENDER_EXTERNAL_URL"), "http://localhost:8080"),
+		frontendURL: os.Getenv("FRONTEND_URL"),
 	}
 }
 
 func (s *emailService) SendVerificationEmail(toEmail, token string) error {
-	link := fmt.Sprintf("http://localhost:8080/verify?token=%s", token)
+	link := fmt.Sprintf("%s/auth/verify?token=%s", trimTrailingSlash(s.appBaseURL), token)
 
 	from := mail.NewEmail("Go App", s.from)
 	subject := "Verify Your Email"
@@ -52,7 +57,8 @@ func (s *emailService) SendVerificationEmail(toEmail, token string) error {
 }
 
 func (s *emailService) SendPasswordReset(toEmail string, token string) error {
-	link := fmt.Sprintf("http://localhost:8080/reset?token=%s", token)
+	resetBaseURL := firstNonEmpty(s.frontendURL, s.appBaseURL)
+	link := fmt.Sprintf("%s/reset-password?token=%s", trimTrailingSlash(resetBaseURL), token)
 
 	from := mail.NewEmail("Go App", s.from)
 	subject := "Password Reset Request"
@@ -93,4 +99,17 @@ func containsIgnoreCase(s, substr string) bool {
 		(len(s) == len(substr) && (s == substr || (len(s) > 0 && len(substr) > 0 &&
 			containsIgnoreCase(s[1:], substr))))) ||
 		(len(s) > 0 && (s[0]|32) == (substr[0]|32) && containsIgnoreCase(s[1:], substr[1:])))
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func trimTrailingSlash(value string) string {
+	return strings.TrimRight(value, "/")
 }

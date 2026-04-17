@@ -64,6 +64,8 @@ Common variables used by this project:
 
 ```env
 DATABASE_URL=postgresql://postgres:password@localhost:5432/auth_db?sslmode=disable
+APP_BASE_URL=http://localhost:8080
+FRONTEND_URL=http://localhost:3000
 
 JWT_SECRET=your-secret
 
@@ -72,6 +74,8 @@ ADMIN_PASSWORD=supersecret
 ```
 
 If you use the email flow, make sure the SendGrid variables are also configured based on [`services/email_service.go`](/Users/meilanasapta/Code/go-auth-app/services/email_service.go#L1).
+
+`APP_BASE_URL` is used for backend-generated links such as email verification. `FRONTEND_URL` is optional and is used for password reset links if you have a separate frontend.
 
 ## Running the Application
 
@@ -86,6 +90,8 @@ The server runs on:
 ```text
 http://localhost:8080
 ```
+
+The app now respects the `PORT` environment variable automatically, which is required for platforms like Render.
 
 ## Running with Docker
 
@@ -117,6 +123,34 @@ By default, the gateway is exposed on:
 ```text
 http://localhost
 ```
+
+## Deploying to Render with Neon
+
+Recommended Render setup:
+- Service type: `Web Service`
+- Runtime: `Go`
+- Build command: `go build -tags netgo -ldflags '-s -w' -o app .`
+- Start command: `./app`
+- Health check path: `/health`
+
+Recommended environment variables on Render:
+
+```env
+DATABASE_URL=postgresql://<user>:<password>@<your-neon-host>/<db>?sslmode=require
+JWT_SECRET=replace-with-a-long-random-secret
+APP_BASE_URL=https://<your-render-service>.onrender.com
+FRONTEND_URL=https://<your-frontend-domain>
+SENDGRID_API_KEY=...
+SENDGRID_EMAIL=...
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=supersecret
+```
+
+If you use Neon, prefer its direct connection string with `sslmode=require`. If you later need connection pooling, use Neon's pooled connection string instead.
+
+This repository also includes [`render.yaml`](/Users/meilanasapta/Code/go-auth-app/render.yaml#L1) as a starting point for Render Blueprint-based deployment.
+
+For convenience, you can also start from [`.env.render.example`](/Users/meilanasapta/Code/go-auth-app/.env.render.example#L1) when filling Render environment variables.
 
 ## Database Migration
 

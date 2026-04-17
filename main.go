@@ -4,6 +4,7 @@ import (
 	"go-auth-app/config"
 	"go-auth-app/modules/auth"
 	"go-auth-app/modules/user"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -34,8 +35,12 @@ func initApp() *gin.Engine {
 
 func main() {
 	router := initApp()
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	if err := router.Run(":8080"); err != nil {
+	if err := router.Run(":" + port); err != nil {
 		panic(err)
 	}
 }

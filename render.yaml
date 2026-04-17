@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: go-auth-app
+    runtime: go
+    buildCommand: go build -tags netgo -ldflags '-s -w' -o app .
+    startCommand: ./app
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: SENDGRID_EMAIL
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

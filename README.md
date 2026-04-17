@@ -63,12 +63,7 @@ Copy `.env.example` to `.env`, then fill in the values.
 Common variables used by this project:
 
 ```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=password
-DB_NAME=auth_db
-DB_SSLMODE=disable
+DATABASE_URL=postgresql://postgres:password@localhost:5432/auth_db?sslmode=disable
 
 JWT_SECRET=your-secret
 
@@ -131,6 +126,8 @@ Run migrations with:
 go run ./cmd/migrate
 ```
 
+The migration command now reads `DATABASE_URL` first, with backward-compatible fallback to the older `DB_HOST` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_PORT` / `DB_SSLMODE` variables.
+
 Migration files are stored in [`migrations/`](/Users/meilanasapta/Code/go-auth-app/migrations).
 
 ## Database Seeding
@@ -154,6 +151,8 @@ make db-setup
 This target runs:
 - `make migrate-up`
 - `make seed`
+
+`make migrate-*` also prefers `DATABASE_URL` when it is present in your env file.
 
 The Docker setup also uses this shortcut internally through the `db-setup` service in [`docker-compose.yaml`](/Users/meilanasapta/Code/go-auth-app/docker-compose.yaml#L1).
 

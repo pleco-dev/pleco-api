@@ -11,11 +11,12 @@ import (
 
 var DB *gorm.DB
 
-func ConnectDB() *gorm.DB {
-	var database *gorm.DB
-	var err error
+func DatabaseURL() string {
+	if databaseURL := GetEnv("DATABASE_URL", ""); databaseURL != "" {
+		return databaseURL
+	}
 
-	dsn := fmt.Sprintf(
+	return fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
 		GetEnv("DB_HOST", "db"),
 		GetEnv("DB_USER", "postgres"),
@@ -24,6 +25,13 @@ func ConnectDB() *gorm.DB {
 		GetEnv("DB_PORT", "5432"),
 		GetEnv("DB_SSLMODE", "disable"),
 	)
+}
+
+func ConnectDB() *gorm.DB {
+	var database *gorm.DB
+	var err error
+
+	dsn := DatabaseURL()
 
 	// retry mechanism
 	for i := 0; i < 10; i++ {

@@ -1,13 +1,11 @@
 ENV_FILE ?= .env
 -include $(ENV_FILE)
 
-DB_HOST ?= $(DB_HOST)
-DB_PORT ?= $(DB_PORT)
-DB_USER ?= $(DB_USER)
-DB_PASSWORD ?= $(DB_PASSWORD)
-DB_NAME ?= $(DB_NAME)
-
-DB_URL := postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
+ifeq ($(strip $(DATABASE_URL)),)
+DB_URL := postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(if $(DB_SSLMODE),$(DB_SSLMODE),disable)
+else
+DB_URL := $(DATABASE_URL)
+endif
 
 .PHONY: migrate-up migrate-down migrate-down-all migrate-status migrate-force migrate-create migrate-drop seed db-setup docker-up docker-down docker-logs docker-rebuild
 

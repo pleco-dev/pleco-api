@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"go-auth-app/modules/audit"
 	tokenModule "go-auth-app/modules/token"
 	userModule "go-auth-app/modules/user"
 	"go-auth-app/utils"
@@ -63,24 +64,77 @@ func (s *authService) Register(user *userModule.User, password string) error {
 		log.Printf("verification email send failed for %s: %v", user.Email, sendErr)
 	}
 
+	s.AuditSvc.SafeRecord(audit.RecordInput{
+		ActorUserID: &user.ID,
+		Action:      "register",
+		Resource:    "user",
+		ResourceID:  &user.ID,
+		Status:      "success",
+		Description: "user registered",
+	})
+
 	return nil
 }
 
 func (s *authService) Login(email, password, deviceID, userAgent, ipAddress string) (*AuthTokens, error) {
 	user, err := s.UserRepo.FindByEmail(email)
 	if err != nil {
+		s.AuditSvc.SafeRecord(audit.RecordInput{
+			Action:      "login",
+			Resource:    "auth",
+			Status:      "failed",
+			Description: "invalid credentials",
+			IPAddress:   ipAddress,
+			UserAgent:   userAgent,
+		})
 		return nil, errors.New("invalid credentials")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		s.AuditSvc.SafeRecord(audit.RecordInput{
+			ActorUserID: &user.ID,
+			Action:      "login",
+			Resource:    "auth",
+			ResourceID:  &user.ID,
+			Status:      "failed",
+			Description: "invalid credentials",
+			IPAddress:   ipAddress,
+			UserAgent:   userAgent,
+		})
 		return nil, errors.New("invalid credentials")
 	}
 
 	if !user.IsVerified {
+		s.AuditSvc.SafeRecord(audit.RecordInput{
+			ActorUserID: &user.ID,
+			Action:      "login",
+			Resource:    "auth",
+			ResourceID:  &user.ID,
+			Status:      "denied",
+			Description: "email not verified",
+			IPAddress:   ipAddress,
+			UserAgent:   userAgent,
+		})
 		return nil, errors.New("please verify your email first")
 	}
 
-	return s.issueTokens(user.ID, user.Role, deviceID, userAgent, ipAddress)
+	tokens, err := s.issueTokens(user.ID, user.Role, deviceID, userAgent, ipAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	s.AuditSvc.SafeRecord(audit.RecordInput{
+		ActorUserID: &user.ID,
+		Action:      "login",
+		Resource:    "auth",
+		ResourceID:  &user.ID,
+		Status:      "success",
+		Description: "user logged in",
+		IPAddress:   ipAddress,
+		UserAgent:   userAgent,
+	})
+
+	return tokens, nil
 }
 
 func (s *authService) GetProfile(userID uint) (*userModule.User, error) {

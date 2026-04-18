@@ -45,10 +45,13 @@ This project provides:
 - user registration and login
 - access token and refresh token flow
 - logout and profile endpoints
+- self profile update and password change
 - email verification
 - forgot password and reset password
 - Google social login
-- admin user listing and deletion
+- admin user management
+- audit trail for important auth and user actions
+- permission-based authorization for admin actions
 - database migration and seeding
 - local Docker workflow
 - Render deployment support
@@ -71,6 +74,7 @@ This project provides:
 ├── appsetup/         # app bootstrap and route registration
 ├── cmd/              # migration and seed entrypoints
 ├── config/           # env, db, and app config
+├── docs/             # OpenAPI documentation
 ├── migrations/       # SQL migrations
 ├── modules/          # modular business domains
 ├── postman/          # manual API testing assets
@@ -170,9 +174,10 @@ Authorization: Bearer <access_token>
 
 - Admin routes require an access token that belongs to an admin user.
 - Refresh tokens are only valid for `POST /auth/refresh`.
-- Most auth endpoints return either:
-  - a JSON object with tokens
-  - or a JSON message/error payload
+- API responses use a standard envelope:
+  - success: `status`, `message`, optional `data`, optional `meta`
+  - error: `status`, `message`, optional `errors`
+- OpenAPI reference is available at [`docs/openapi.yaml`](/Users/meilanasapta/Code/go-auth-app/docs/openapi.yaml#L1)
 
 ## Example Requests
 
@@ -193,6 +198,7 @@ Example response:
 
 ```json
 {
+  "status": "success",
   "message": "User registered"
 }
 ```
@@ -214,8 +220,12 @@ Example response:
 
 ```json
 {
-  "access_token": "<jwt>",
-  "refresh_token": "<jwt>"
+  "status": "success",
+  "message": "Login success",
+  "data": {
+    "access_token": "<jwt>",
+    "refresh_token": "<jwt>"
+  }
 }
 ```
 
@@ -230,10 +240,14 @@ Example response:
 
 ```json
 {
-  "id": 1,
-  "name": "Tester",
-  "email": "tester@example.com",
-  "role": "user"
+  "status": "success",
+  "message": "Profile fetched",
+  "data": {
+    "id": 1,
+    "name": "Tester",
+    "email": "tester@example.com",
+    "role": "user"
+  }
 }
 ```
 
@@ -284,7 +298,7 @@ ACCESS_TOKEN=$(curl -s -X POST "$BASE_URL/auth/login" \
   -d '{
     "email": "tester@example.com",
     "password": "secret123"
-  }' | jq -r '.access_token')
+  }' | jq -r '.data.access_token')
 ```
 
 ### Profile
@@ -292,6 +306,29 @@ ACCESS_TOKEN=$(curl -s -X POST "$BASE_URL/auth/login" \
 ```bash
 curl -X GET "$BASE_URL/auth/profile" \
   -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### Update Profile
+
+```bash
+curl -X PATCH "$BASE_URL/auth/profile" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Tester Updated"
+  }'
+```
+
+### Change Password
+
+```bash
+curl -X PATCH "$BASE_URL/auth/change-password" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "current_password": "secret123",
+    "new_password": "newsecret123"
+  }'
 ```
 
 ### Refresh Token
@@ -305,7 +342,7 @@ REFRESH_TOKEN=$(curl -s -X POST "$BASE_URL/auth/login" \
   -d '{
     "email": "tester@example.com",
     "password": "secret123"
-  }' | jq -r '.refresh_token')
+  }' | jq -r '.data.refresh_token')
 ```
 
 Then refresh:
@@ -381,10 +418,53 @@ curl -X GET "$BASE_URL/auth/admin/users?page=1&limit=10" \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
 
+### Admin: Get User By ID
+
+```bash
+curl -X GET "$BASE_URL/auth/admin/users/1" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### Admin: Create User
+
+```bash
+curl -X POST "$BASE_URL/auth/admin/users" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Managed User",
+    "email": "managed@example.com",
+    "password": "secret123",
+    "role": "user",
+    "is_verified": true
+  }'
+```
+
+### Admin: Update User
+
+```bash
+curl -X PUT "$BASE_URL/auth/admin/users/1" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Managed User Updated",
+    "email": "managed@example.com",
+    "role": "admin",
+    "is_verified": true
+  }'
+```
+
 ### Admin: Delete User
 
 ```bash
 curl -X DELETE "$BASE_URL/auth/admin/users/1" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### Admin: Get Audit Logs
+
+```bash
+curl -X GET "$BASE_URL/auth/admin/audit-logs?page=1&limit=10&resource=user" \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
 
@@ -519,8 +599,12 @@ Recommended manual flow:
 3. `Verify Email` or mark the user as verified in the database
 4. `Login`
 5. `Profile`
-6. `Refresh Token`
-7. `Logout`
+6. `Update Profile`
+7. `Change Password`
+8. `Refresh Token`
+9. `Logout`
+10. `Admin` requests with an admin token
+11. `Get Audit Logs`
 
 Notes:
 - `Login` and `Refresh Token` update the Postman environment variables for `access_token` and `refresh_token`.
@@ -577,12 +661,18 @@ AUTO_RUN_SEEDS=true
 - `POST /auth/reset-password`
 - `POST /auth/social-login`
 - `GET /auth/profile`
+- `PATCH /auth/profile`
+- `PATCH /auth/change-password`
 - `POST /auth/logout`
 
 ### Admin
 
 - `GET /auth/admin/users`
+- `GET /auth/admin/users/:id`
+- `POST /auth/admin/users`
+- `PUT /auth/admin/users/:id`
 - `DELETE /auth/admin/users/:id`
+- `GET /auth/admin/audit-logs`
 
 ### Health
 
@@ -594,6 +684,7 @@ AUTO_RUN_SEEDS=true
 - runtime configuration is centralized in [`config/app.go`](/Users/meilanasapta/Code/go-auth-app/config/app.go#L1)
 - auth service logic is split by use case under [`modules/auth/`](/Users/meilanasapta/Code/go-auth-app/modules/auth)
 - repository constructors now take explicit DB dependencies instead of relying on global DB state
+- admin routes now use permission checks instead of role-only checks for finer authorization control
 
 ## Security Notes
 
@@ -616,6 +707,7 @@ The codebase has gone through:
 - modularization cleanup
 - auth hardening
 - bootstrap/config standardization
+- audit trail foundation for auth and user management
 - local, Docker, and Render deployment preparation
 - Postman manual testing setup
 

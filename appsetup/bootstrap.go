@@ -51,5 +51,6 @@ func RunSeeds(db *gorm.DB, cfg config.AppConfig) {
 
 	seeds.SeedRoles(db)
 	seeds.SeedPermissions(db)
+	seeds.SeedRolePermissions(db)
 	seeds.SeedAdmin(db, cfg)
 }

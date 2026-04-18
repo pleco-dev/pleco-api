@@ -5,6 +5,8 @@ import (
 	"log"
 	"time"
 
+	"go-auth-app/modules/audit"
+
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -26,6 +28,15 @@ func (s *authService) ForgotPassword(email string) error {
 	if err := s.EmailSvc.SendPasswordReset(user.Email, token); err != nil {
 		log.Printf("password reset email failed for %s: %v", user.Email, err)
 	}
+
+	s.AuditSvc.SafeRecord(audit.RecordInput{
+		ActorUserID: &user.ID,
+		Action:      "forgot_password",
+		Resource:    "auth",
+		ResourceID:  &user.ID,
+		Status:      "success",
+		Description: "password reset requested",
+	})
 
 	return nil
 }
@@ -69,7 +80,20 @@ func (s *authService) ResetPassword(tokenString string, newPassword string) erro
 	user.Password = string(hashed)
 	user.PasswordUpdatedAt = time.Now()
 
-	return s.UserRepo.Update(user)
+	if err := s.UserRepo.Update(user); err != nil {
+		return err
+	}
+
+	s.AuditSvc.SafeRecord(audit.RecordInput{
+		ActorUserID: &user.ID,
+		Action:      "reset_password",
+		Resource:    "auth",
+		ResourceID:  &user.ID,
+		Status:      "success",
+		Description: "password reset completed",
+	})
+
+	return nil
 }
 
 func (s *authService) generateResetToken(userID uint, email string) (string, error) {

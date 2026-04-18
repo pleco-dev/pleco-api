@@ -2,6 +2,7 @@ package auth
 
 import (
 	"go-auth-app/config"
+	"go-auth-app/modules/audit"
 	permissionless "go-auth-app/modules/social"
 	tokenModule "go-auth-app/modules/token"
 	userModule "go-auth-app/modules/user"
@@ -31,6 +32,7 @@ type authService struct {
 	SocialRepo            permissionless.Repository
 	JWT                   *services.JWTService
 	EmailSvc              services.EmailService
+	AuditSvc              *audit.Service
 }
 
 var _ AuthService = (*authService)(nil)
@@ -45,7 +47,7 @@ const (
 	TokenRefresh = "refresh"
 )
 
-func NewService(db *gorm.DB, cfg config.AppConfig, _ *userModule.Service, jwtService *services.JWTService) AuthService {
+func NewService(db *gorm.DB, cfg config.AppConfig, _ *userModule.Service, jwtService *services.JWTService, auditSvc *audit.Service) AuthService {
 	userRepo := userModule.NewRepository(db)
 	refreshTokenRepo := tokenModule.NewRefreshTokenRepository(db)
 	emailVerificationRepo := tokenModule.NewEmailVerificationRepository(db)
@@ -60,6 +62,7 @@ func NewService(db *gorm.DB, cfg config.AppConfig, _ *userModule.Service, jwtSer
 		socialRepo,
 		jwtService,
 		emailSvc,
+		auditSvc,
 	)
 }
 
@@ -71,6 +74,7 @@ func NewAuthService(
 	socialRepo permissionless.Repository,
 	jwt *services.JWTService,
 	emailSvc services.EmailService,
+	auditSvc *audit.Service,
 ) AuthService {
 	return &authService{
 		DB:                    db,
@@ -80,5 +84,6 @@ func NewAuthService(
 		SocialRepo:            socialRepo,
 		JWT:                   jwt,
 		EmailSvc:              emailSvc,
+		AuditSvc:              auditSvc,
 	}
 }

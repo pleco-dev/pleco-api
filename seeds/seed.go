@@ -40,7 +40,14 @@ func SeedRoles(db *gorm.DB) map[string]roleModule.Role {
 func SeedPermissions(db *gorm.DB) map[string]permissionModule.Permission {
 	mustHaveDB(db)
 
-	permNames := []string{"create_user", "delete_user"}
+	permNames := []string{
+		"user.read_all",
+		"user.read",
+		"user.create",
+		"user.update",
+		"user.delete",
+		"audit.read",
+	}
 	permMap := make(map[string]permissionModule.Permission)
 
 	for _, name := range permNames {
@@ -53,6 +60,45 @@ func SeedPermissions(db *gorm.DB) map[string]permissionModule.Permission {
 	}
 	fmt.Println("Permissions seeding done")
 	return permMap
+}
+
+func SeedRolePermissions(db *gorm.DB) {
+	mustHaveDB(db)
+
+	roleMap := SeedRoles(db)
+
+	rolePermissions := map[string][]string{
+		"admin": {
+			"user.read_all",
+			"user.read",
+			"user.create",
+			"user.update",
+			"user.delete",
+			"audit.read",
+		},
+		"user": {},
+	}
+
+	for roleName, permissions := range rolePermissions {
+		role, ok := roleMap[roleName]
+		if !ok {
+			log.Printf("Role %s not found while seeding role permissions", roleName)
+			continue
+		}
+
+		for _, permission := range permissions {
+			values := map[string]interface{}{
+				"role_id":    role.ID,
+				"permission": permission,
+			}
+
+			if err := db.Table("role_permissions").Where(values).FirstOrCreate(values).Error; err != nil {
+				log.Printf("Failed to seed role permission %s -> %s: %v", roleName, permission, err)
+			}
+		}
+	}
+
+	fmt.Println("Role permissions seeding done")
 }
 
 func SeedAdmin(db *gorm.DB, cfg config.AppConfig) {

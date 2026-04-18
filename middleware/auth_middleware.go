@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"go-auth-app/httpx"
 	"go-auth-app/services"
 	"strings"
 
@@ -12,12 +13,14 @@ func AuthMiddleware(jwtService *services.JWTService) gin.HandlerFunc {
 
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.AbortWithStatusJSON(401, gin.H{"error": "missing token"})
+			httpx.Respond(c, 401, "error", "missing token", nil, nil, nil)
+			c.Abort()
 			return
 		}
 
 		if !strings.HasPrefix(authHeader, "Bearer ") {
-			c.AbortWithStatusJSON(401, gin.H{"error": "invalid token"})
+			httpx.Respond(c, 401, "error", "invalid token", nil, nil, nil)
+			c.Abort()
 			return
 		}
 
@@ -25,25 +28,29 @@ func AuthMiddleware(jwtService *services.JWTService) gin.HandlerFunc {
 
 		claims, err := jwtService.ValidateToken(tokenString)
 		if err != nil {
-			c.AbortWithStatusJSON(401, gin.H{"error": "invalid token"})
+			httpx.Respond(c, 401, "error", "invalid token", nil, nil, nil)
+			c.Abort()
 			return
 		}
 
 		tokenType, ok := claims["type"].(string)
 		if !ok || tokenType != "access" {
-			c.AbortWithStatusJSON(401, gin.H{"error": "invalid token"})
+			httpx.Respond(c, 401, "error", "invalid token", nil, nil, nil)
+			c.Abort()
 			return
 		}
 
 		userIDValue, ok := claims["user_id"].(float64)
 		if !ok {
-			c.AbortWithStatusJSON(401, gin.H{"error": "invalid token"})
+			httpx.Respond(c, 401, "error", "invalid token", nil, nil, nil)
+			c.Abort()
 			return
 		}
 
 		roleValue, ok := claims["role"].(string)
 		if !ok {
-			c.AbortWithStatusJSON(401, gin.H{"error": "invalid token"})
+			httpx.Respond(c, 401, "error", "invalid token", nil, nil, nil)
+			c.Abort()
 			return
 		}
 

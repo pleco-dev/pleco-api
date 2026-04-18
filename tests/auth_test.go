@@ -151,6 +151,9 @@ func TestRegister_Success(t *testing.T) {
 	handler.Register(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	assert.Equal(t, "success", bodyMap["status"])
+	assert.Equal(t, "User registered", bodyMap["message"])
 	mockService.AssertExpectations(t)
 }
 
@@ -181,6 +184,13 @@ func TestLogin_Success(t *testing.T) {
 	handler.Login(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	assert.Equal(t, "success", bodyMap["status"])
+	assert.Equal(t, "Login success", bodyMap["message"])
+	data, ok := bodyMap["data"].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, "abc", data["access_token"])
+	assert.Equal(t, "xyz", data["refresh_token"])
 }
 
 func TestLogout_Success(t *testing.T) {
@@ -198,6 +208,9 @@ func TestLogout_Success(t *testing.T) {
 	handler.Logout(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	assert.Equal(t, "success", bodyMap["status"])
+	assert.Equal(t, "logout success", bodyMap["message"])
 }
 
 func TestAuthMiddleware_RejectsRefreshToken(t *testing.T) {
@@ -219,6 +232,9 @@ func TestAuthMiddleware_RejectsRefreshToken(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	assert.Equal(t, "error", bodyMap["status"])
+	assert.Equal(t, "invalid token", bodyMap["message"])
 }
 
 func TestAuthMiddleware_RejectsMalformedClaimsGracefully(t *testing.T) {
@@ -244,6 +260,9 @@ func TestAuthMiddleware_RejectsMalformedClaimsGracefully(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	assert.Equal(t, "error", bodyMap["status"])
+	assert.Equal(t, "invalid token", bodyMap["message"])
 }
 
 func TestAuthService_Logout_MissingTokenIsIgnored(t *testing.T) {
@@ -265,6 +284,7 @@ func TestAuthService_Logout_MissingTokenIsIgnored(t *testing.T) {
 		refreshRepo,
 		&stubEmailVerificationRepo{},
 		&stubSocialRepo{},
+		nil,
 		nil,
 		nil,
 	)
@@ -300,6 +320,7 @@ func TestAuthService_Logout_DeletesFoundToken(t *testing.T) {
 		refreshRepo,
 		&stubEmailVerificationRepo{},
 		&stubSocialRepo{},
+		nil,
 		nil,
 		nil,
 	)
@@ -338,6 +359,7 @@ func TestAuthService_Register_IgnoresEmailDeliveryFailure(t *testing.T) {
 		&stubSocialRepo{},
 		services.NewJWTService([]byte("secret")),
 		emailSvc,
+		nil,
 	)
 
 	err := service.Register(&user.User{
@@ -367,6 +389,13 @@ func TestRefreshToken_Success(t *testing.T) {
 	handler.RefreshToken(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	assert.Equal(t, "success", bodyMap["status"])
+	assert.Equal(t, "Refresh token success", bodyMap["message"])
+	data, ok := bodyMap["data"].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, "new", data["access_token"])
+	assert.Equal(t, "refresh", data["refresh_token"])
 }
 
 func TestProfile_Success(t *testing.T) {
@@ -388,6 +417,12 @@ func TestProfile_Success(t *testing.T) {
 	handler.Profile(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	assert.Equal(t, "success", bodyMap["status"])
+	assert.Equal(t, "Profile fetched", bodyMap["message"])
+	data, ok := bodyMap["data"].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, "test@mail.com", data["email"])
 }
 
 func TestVerifyEmail_Success(t *testing.T) {
@@ -403,6 +438,9 @@ func TestVerifyEmail_Success(t *testing.T) {
 	handler.VerifyEmail(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	assert.Equal(t, "success", bodyMap["status"])
+	assert.Equal(t, "email verified", bodyMap["message"])
 }
 
 func TestResendVerification_Success(t *testing.T) {

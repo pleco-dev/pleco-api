@@ -1,4 +1,4 @@
-package utils
+package httpx
 
 import "github.com/gin-gonic/gin"
 
@@ -26,8 +26,4 @@ func Success(c *gin.Context, code int, message string, data interface{}, meta in
 
 func Error(c *gin.Context, code int, message string) {
 	Respond(c, code, "error", message, nil, nil, nil)
-}
-
-func ValidationError(c *gin.Context, errors interface{}) {
-	Respond(c, 400, "error", "Validation failed", nil, nil, errors)
 }

@@ -26,11 +26,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	user := utils.DtoToUser(input.Name, input.Email)
 	err := h.AuthService.Register(&user, input.Password)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		utils.Error(c, http.StatusInternalServerError, "Failed to create user")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "User registered"})
+	utils.Success(c, http.StatusOK, "User registered", nil, nil)
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -47,33 +47,33 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	tokens, err := h.AuthService.Login(input.Email, input.Password, deviceID, userAgent, ipAddress)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, tokens)
+	utils.Success(c, http.StatusOK, "Login success", tokens, nil)
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
 	userID, ok := utils.GetUserIDFromContext(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		utils.Error(c, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
 	deviceID := c.GetHeader("X-Device-ID")
 	if deviceID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "device id required"})
+		utils.Error(c, http.StatusBadRequest, "device id required")
 		return
 	}
 
 	err := h.AuthService.Logout(userID, deviceID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "logout success"})
+	utils.Success(c, http.StatusOK, "logout success", nil, nil)
 }
 
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
@@ -88,49 +88,49 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 
 	tokens, err := h.AuthService.RefreshToken(body.RefreshToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, tokens)
+	utils.Success(c, http.StatusOK, "Refresh token success", tokens, nil)
 }
 
 func (h *AuthHandler) Profile(c *gin.Context) {
 	userID, ok := utils.GetUserIDFromContext(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		utils.Error(c, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
 	user, err := h.AuthService.GetProfile(userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		utils.Error(c, http.StatusNotFound, "User not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	utils.Success(c, http.StatusOK, "Profile fetched", gin.H{
 		"id":    user.ID,
 		"name":  user.Name,
 		"email": user.Email,
 		"role":  user.Role,
-	})
+	}, nil)
 }
 
 func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 	token := c.Query("token")
 
 	if token == "" {
-		c.JSON(400, gin.H{"error": "token required"})
+		utils.Error(c, http.StatusBadRequest, "token required")
 		return
 	}
 
 	err := h.AuthService.VerifyEmail(token)
 	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "email verified"})
+	utils.Success(c, http.StatusOK, "email verified", nil, nil)
 }
 
 func (h *AuthHandler) ResendVerification(c *gin.Context) {
@@ -146,11 +146,11 @@ func (h *AuthHandler) ResendVerification(c *gin.Context) {
 
 	err := h.AuthService.ResendVerification(input.Email)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Verification email resent"})
+	utils.Success(c, http.StatusOK, "Verification email resent", nil, nil)
 }
 
 func (h *AuthHandler) ForgotPassword(c *gin.Context) {
@@ -165,11 +165,11 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 
 	err := h.AuthService.ForgotPassword(body.Email)
 	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "reset link sent"})
+	utils.Success(c, http.StatusOK, "reset link sent", nil, nil)
 }
 
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
@@ -185,11 +185,11 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 
 	err := h.AuthService.ResetPassword(body.Token, body.NewPassword)
 	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "password updated"})
+	utils.Success(c, http.StatusOK, "password updated", nil, nil)
 }
 
 func (h *AuthHandler) SocialLogin(c *gin.Context) {
@@ -209,9 +209,9 @@ func (h *AuthHandler) SocialLogin(c *gin.Context) {
 
 	tokens, err := h.AuthService.SocialLogin(body.Provider, body.Token, deviceID, userAgent, ip)
 	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	c.JSON(200, tokens)
+	utils.Success(c, http.StatusOK, "Social login success", tokens, nil)
 }

@@ -3,6 +3,8 @@ package role
 import (
 	"net/http"
 
+	"go-auth-app/httpx"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -10,7 +12,7 @@ func RequireRole(role string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userRole, exists := c.Get("role")
 		if !exists || userRole != role {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+			httpx.Error(c, http.StatusForbidden, "Forbidden")
 			c.Abort()
 			return
 		}

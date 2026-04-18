@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"go-auth-app/modules/audit"
 	tokenModule "go-auth-app/modules/token"
 
 	"github.com/google/uuid"
@@ -41,6 +42,15 @@ func (s *authService) ResendVerification(email string) error {
 		log.Printf("verification resend failed for %s: %v", user.Email, err)
 	}
 
+	s.AuditSvc.SafeRecord(audit.RecordInput{
+		ActorUserID: &user.ID,
+		Action:      "resend_verification",
+		Resource:    "auth",
+		ResourceID:  &user.ID,
+		Status:      "success",
+		Description: "verification email resent",
+	})
+
 	return nil
 }
 
@@ -65,5 +75,15 @@ func (s *authService) VerifyEmail(token string) error {
 	}
 
 	_ = s.EmailVerificationRepo.DeleteByID(verification.ID)
+
+	s.AuditSvc.SafeRecord(audit.RecordInput{
+		ActorUserID: &user.ID,
+		Action:      "verify_email",
+		Resource:    "auth",
+		ResourceID:  &user.ID,
+		Status:      "success",
+		Description: "email verified",
+	})
+
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"go-auth-app/modules/audit"
 	"go-auth-app/utils"
 
 	"gorm.io/gorm"
@@ -13,12 +14,35 @@ func (s *authService) Logout(userID uint, deviceID string) error {
 	token, err := s.RefreshTokenRepo.FindByUserAndDevice(userID, deviceID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			s.AuditSvc.SafeRecord(audit.RecordInput{
+				ActorUserID: &userID,
+				Action:      "logout",
+				Resource:    "auth",
+				ResourceID:  &userID,
+				Status:      "success",
+				Description: "logout requested without stored refresh token",
+			})
 			return nil
 		}
 		return err
 	}
 
-	return s.RefreshTokenRepo.DeleteByID(token.ID)
+	if err := s.RefreshTokenRepo.DeleteByID(token.ID); err != nil {
+		return err
+	}
+
+	s.AuditSvc.SafeRecord(audit.RecordInput{
+		ActorUserID: &userID,
+		Action:      "logout",
+		Resource:    "auth",
+		ResourceID:  &userID,
+		Status:      "success",
+		Description: "user logged out",
+		UserAgent:   token.UserAgent,
+		IPAddress:   token.IPAddress,
+	})
+
+	return nil
 }
 
 func (s *authService) LogoutAll(userID uint) error {
@@ -72,5 +96,21 @@ func (s *authService) RefreshToken(oldRefreshToken string) (*AuthTokens, error) 
 		return nil, err
 	}
 
-	return s.issueTokens(uid, user.Role, matchedToken.DeviceID, matchedToken.UserAgent, matchedToken.IPAddress)
+	newTokens, err := s.issueTokens(uid, user.Role, matchedToken.DeviceID, matchedToken.UserAgent, matchedToken.IPAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	s.AuditSvc.SafeRecord(audit.RecordInput{
+		ActorUserID: &uid,
+		Action:      "refresh_token",
+		Resource:    "auth",
+		ResourceID:  &uid,
+		Status:      "success",
+		Description: "refresh token rotated",
+		UserAgent:   matchedToken.UserAgent,
+		IPAddress:   matchedToken.IPAddress,
+	})
+
+	return newTokens, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"go-auth-app/modules/audit"
 	permissionless "go-auth-app/modules/social"
 	userModule "go-auth-app/modules/user"
 
@@ -84,5 +85,21 @@ func (s *authService) SocialLogin(provider string, idToken string, deviceID, use
 		}
 	}
 
-	return s.issueTokens(user.ID, user.Role, deviceID, userAgent, ipAddress)
+	tokens, err := s.issueTokens(user.ID, user.Role, deviceID, userAgent, ipAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	s.AuditSvc.SafeRecord(audit.RecordInput{
+		ActorUserID: &user.ID,
+		Action:      "social_login",
+		Resource:    "auth",
+		ResourceID:  &user.ID,
+		Status:      "success",
+		Description: "social login succeeded",
+		IPAddress:   ipAddress,
+		UserAgent:   userAgent,
+	})
+
+	return tokens, nil
 }

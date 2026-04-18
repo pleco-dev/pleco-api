@@ -12,6 +12,9 @@
     { "key": "device_id", "value": "web" },
     { "key": "user_email", "value": "tester@example.com" },
     { "key": "user_password", "value": "secret123" },
+    { "key": "managed_user_id", "value": "1" },
+    { "key": "managed_user_email", "value": "managed@example.com" },
+    { "key": "managed_user_password", "value": "secret123" },
     { "key": "verify_token", "value": "" },
     { "key": "reset_token", "value": "" },
     { "key": "google_id_token", "value": "" }
@@ -29,7 +32,8 @@
               "});",
               "pm.test('response contains ok status', function () {",
               "  const json = pm.response.json();",
-              "  pm.expect(json.status).to.eql('ok');",
+              "  pm.expect(json.status).to.eql('success');",
+              "  pm.expect(json.data.status).to.eql('ok');",
               "});"
             ],
             "type": "text/javascript"
@@ -83,14 +87,15 @@
                   "  pm.response.to.have.status(200);",
                   "});",
                   "const json = pm.response.json();",
+                  "const data = json.data || {};",
                   "pm.test('login returns tokens', function () {",
-                  "  pm.expect(json.access_token).to.be.a('string').and.not.empty;",
-                  "  pm.expect(json.refresh_token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(data.access_token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(data.refresh_token).to.be.a('string').and.not.empty;",
                   "});",
-                  "if (json.access_token) pm.environment.set('access_token', json.access_token);",
-                  "if (json.refresh_token) pm.environment.set('refresh_token', json.refresh_token);",
-                  "console.log('access_token set:', !!json.access_token);",
-                  "console.log('refresh_token set:', !!json.refresh_token);"
+                  "if (data.access_token) pm.environment.set('access_token', data.access_token);",
+                  "if (data.refresh_token) pm.environment.set('refresh_token', data.refresh_token);",
+                  "console.log('access_token set:', !!data.access_token);",
+                  "console.log('refresh_token set:', !!data.refresh_token);"
                 ],
                 "type": "text/javascript"
               }
@@ -121,7 +126,7 @@
                   "});",
                   "const json = pm.response.json();",
                   "pm.test('profile contains email', function () {",
-                  "  pm.expect(json.email).to.be.a('string');",
+                  "  pm.expect(json.data.email).to.be.a('string');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -137,6 +142,62 @@
           }
         },
         {
+          "name": "Update Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('update profile returns success', function () {",
+                  "  pm.expect([200, 400, 401]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Tester Updated\"\n}"
+            },
+            "url": "{{base_url}}/auth/profile"
+          }
+        },
+        {
+          "name": "Change Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('change password returns known status', function () {",
+                  "  pm.expect([200, 400, 401]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"{{user_password}}\",\n  \"new_password\": \"newsecret123\"\n}"
+            },
+            "url": "{{base_url}}/auth/change-password"
+          }
+        },
+        {
           "name": "Refresh Token",
           "event": [
             {
@@ -147,14 +208,15 @@
                   "  pm.response.to.have.status(200);",
                   "});",
                   "const json = pm.response.json();",
+                  "const data = json.data || {};",
                   "pm.test('refresh returns rotated tokens', function () {",
-                  "  pm.expect(json.access_token).to.be.a('string').and.not.empty;",
-                  "  pm.expect(json.refresh_token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(data.access_token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(data.refresh_token).to.be.a('string').and.not.empty;",
                   "});",
-                  "if (json.access_token) pm.environment.set('access_token', json.access_token);",
-                  "if (json.refresh_token) pm.environment.set('refresh_token', json.refresh_token);",
-                  "console.log('access_token rotated:', !!json.access_token);",
-                  "console.log('refresh_token rotated:', !!json.refresh_token);"
+                  "if (data.access_token) pm.environment.set('access_token', data.access_token);",
+                  "if (data.refresh_token) pm.environment.set('refresh_token', data.refresh_token);",
+                  "console.log('access_token rotated:', !!data.access_token);",
+                  "console.log('refresh_token rotated:', !!data.refresh_token);"
                 ],
                 "type": "text/javascript"
               }
@@ -354,6 +416,85 @@
           }
         },
         {
+          "name": "Get User By ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('get user by id returns known status', function () {",
+                  "  pm.expect([200, 400, 403, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{base_url}}/auth/admin/users/{{managed_user_id}}"
+          }
+        },
+        {
+          "name": "Create User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('create user returns known status', function () {",
+                  "  pm.expect([201, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Managed User\",\n  \"email\": \"{{managed_user_email}}\",\n  \"password\": \"{{managed_user_password}}\",\n  \"role\": \"user\",\n  \"is_verified\": true\n}"
+            },
+            "url": "{{base_url}}/auth/admin/users"
+          }
+        },
+        {
+          "name": "Update User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('update user returns known status', function () {",
+                  "  pm.expect([200, 400, 403, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Managed User Updated\",\n  \"email\": \"{{managed_user_email}}\",\n  \"role\": \"user\",\n  \"is_verified\": true\n}"
+            },
+            "url": "{{base_url}}/auth/admin/users/{{managed_user_id}}"
+          }
+        },
+        {
           "name": "Delete User",
           "event": [
             {
@@ -373,7 +514,30 @@
             "header": [
               { "key": "Authorization", "value": "Bearer {{access_token}}" }
             ],
-            "url": "{{base_url}}/auth/admin/users/1"
+            "url": "{{base_url}}/auth/admin/users/{{managed_user_id}}"
+          }
+        },
+        {
+          "name": "Get Audit Logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('get audit logs returns known status', function () {",
+                  "  pm.expect([200, 403]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{base_url}}/auth/admin/audit-logs?page=1&limit=10"
           }
         }
       ]

@@ -1,10 +1,6 @@
-package user
+package audit
 
-import (
-	"go-auth-app/modules/audit"
-
-	"gorm.io/gorm"
-)
+import "gorm.io/gorm"
 
 type Module struct {
 	Repository Repository
@@ -12,9 +8,9 @@ type Module struct {
 	Handler    *Handler
 }
 
-func BuildModule(db *gorm.DB, auditSvc *audit.Service) *Module {
+func BuildModule(db *gorm.DB) *Module {
 	repository := NewRepository(db)
-	service := NewService(repository, auditSvc)
+	service := NewService(repository)
 	handler := NewHandler(service)
 
 	return &Module{

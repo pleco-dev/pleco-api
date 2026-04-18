@@ -1,0 +1,674 @@
+openapi: 3.0.3
+info:
+  title: Go Auth App API
+  version: 1.0.0
+  description: |
+    OpenAPI reference for go-auth-app.
+
+    Most API responses use a standard envelope:
+    - success: `status`, `message`, optional `data`, optional `meta`
+    - error: `status`, `message`, optional `errors`
+servers:
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: Health
+  - name: Auth
+  - name: User
+  - name: Audit
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeHealth'
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeMessage'
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeValidationError'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email and password
+      parameters:
+        - in: header
+          name: X-Device-ID
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAuthTokens'
+        '401':
+          description: Invalid credentials or unverified email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /auth/profile:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile fetched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeProfile'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+    patch:
+      tags: [User]
+      summary: Update current user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeUser'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/EnvelopeError'
+                  - $ref: '#/components/schemas/EnvelopeValidationError'
+
+  /auth/change-password:
+    patch:
+      tags: [User]
+      summary: Change current user password
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeMessage'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/EnvelopeError'
+                  - $ref: '#/components/schemas/EnvelopeValidationError'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access and refresh token pair
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Refresh success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAuthTokens'
+        '401':
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout current device
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: X-Device-ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Logout success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeMessage'
+        '400':
+          description: Missing device id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /auth/admin/users:
+    get:
+      tags: [User]
+      summary: Get paginated users
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: role
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Users fetched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeUsers'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+    post:
+      tags: [User]
+      summary: Create user as admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeUser'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/EnvelopeError'
+                  - $ref: '#/components/schemas/EnvelopeValidationError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /auth/admin/users/{id}:
+    get:
+      tags: [User]
+      summary: Get user by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      responses:
+        '200':
+          description: User fetched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeUser'
+        '400':
+          description: Invalid user id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+    put:
+      tags: [User]
+      summary: Update user as admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeUser'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/EnvelopeError'
+                  - $ref: '#/components/schemas/EnvelopeValidationError'
+    delete:
+      tags: [User]
+      summary: Delete user as admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      responses:
+        '200':
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeMessage'
+        '400':
+          description: Invalid user id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /auth/admin/audit-logs:
+    get:
+      tags: [Audit]
+      summary: Get paginated audit logs
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: action
+          schema:
+            type: string
+        - in: query
+          name: resource
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Audit logs fetched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAuditLogs'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    UserID:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+    UpdateProfileRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+          format: password
+        new_password:
+          type: string
+          format: password
+    CreateUserRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        role:
+          type: string
+          enum: [superadmin, admin, user]
+        is_verified:
+          type: boolean
+    UpdateUserRequest:
+      type: object
+      required: [name, email, role]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [superadmin, admin, user]
+        is_verified:
+          type: boolean
+    AuthTokens:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        is_verified:
+          type: boolean
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        actor_user_id:
+          type: integer
+          nullable: true
+        action:
+          type: string
+        resource:
+          type: string
+        resource_id:
+          type: integer
+          nullable: true
+        status:
+          type: string
+        description:
+          type: string
+        ip_address:
+          type: string
+        user_agent:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    FieldError:
+      type: object
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    EnvelopeMessage:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+    EnvelopeError:
+      type: object
+      properties:
+        status:
+          type: string
+          example: error
+        message:
+          type: string
+    EnvelopeValidationError:
+      type: object
+      properties:
+        status:
+          type: string
+          example: error
+        message:
+          type: string
+          example: Validation failed
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+    EnvelopeHealth:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+          example: Health check ok
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              example: ok
+    EnvelopeAuthTokens:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/AuthTokens'
+    EnvelopeProfile:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            email:
+              type: string
+            role:
+              type: string
+    EnvelopeUser:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/User'
+    EnvelopeUsers:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        meta:
+          type: object
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+    EnvelopeAuditLogs:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLog'
+        meta:
+          type: object
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            action:
+              type: string
+            resource:
+              type: string

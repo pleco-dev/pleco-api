@@ -33,6 +33,7 @@ type authService struct {
 	JWT                   *services.JWTService
 	EmailSvc              services.EmailService
 	AuditSvc              *audit.Service
+	SocialCfg             config.SocialConfig
 }
 
 var _ AuthService = (*authService)(nil)
@@ -63,6 +64,7 @@ func NewService(db *gorm.DB, cfg config.AppConfig, _ *userModule.Service, jwtSer
 		jwtService,
 		emailSvc,
 		auditSvc,
+		cfg.Social,
 	)
 }
 
@@ -75,6 +77,7 @@ func NewAuthService(
 	jwt *services.JWTService,
 	emailSvc services.EmailService,
 	auditSvc *audit.Service,
+	socialCfg config.SocialConfig,
 ) AuthService {
 	return &authService{
 		DB:                    db,
@@ -85,5 +88,6 @@ func NewAuthService(
 		JWT:                   jwt,
 		EmailSvc:              emailSvc,
 		AuditSvc:              auditSvc,
+		SocialCfg:             socialCfg,
 	}
 }

@@ -9,6 +9,13 @@ type EmailConfig struct {
 	FrontendURL string
 }
 
+type SocialConfig struct {
+	GoogleClientID    string
+	FacebookAppID     string
+	FacebookAppSecret string
+	AppleClientID     string
+}
+
 type AppConfig struct {
 	Port              string
 	DatabaseURL       string
@@ -18,6 +25,7 @@ type AppConfig struct {
 	AutoRunMigrations bool
 	AutoRunSeeds      bool
 	Email             EmailConfig
+	Social            SocialConfig
 }
 
 func LoadAppConfig() AppConfig {
@@ -34,6 +42,12 @@ func LoadAppConfig() AppConfig {
 			From:        GetEnv("SENDGRID_EMAIL", ""),
 			AppBaseURL:  firstNonEmptyEnv("APP_BASE_URL", "RENDER_EXTERNAL_URL", "http://localhost:8080"),
 			FrontendURL: GetEnv("FRONTEND_URL", ""),
+		},
+		Social: SocialConfig{
+			GoogleClientID:    GetEnv("GOOGLE_CLIENT_ID", ""),
+			FacebookAppID:     GetEnv("FACEBOOK_APP_ID", ""),
+			FacebookAppSecret: GetEnv("FACEBOOK_APP_SECRET", ""),
+			AppleClientID:     GetEnv("APPLE_CLIENT_ID", ""),
 		},
 	}
 }

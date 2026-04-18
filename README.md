@@ -48,7 +48,7 @@ This project provides:
 - self profile update and password change
 - email verification
 - forgot password and reset password
-- Google social login
+- Google, Facebook, and Apple social login
 - admin user management
 - audit trail for important auth and user actions
 - permission-based authorization for admin actions
@@ -118,6 +118,10 @@ ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=supersecret
 SENDGRID_API_KEY=
 SENDGRID_EMAIL=
+GOOGLE_CLIENT_ID=
+FACEBOOK_APP_ID=
+FACEBOOK_APP_SECRET=
+APPLE_CLIENT_ID=
 ```
 
 ### Notes
@@ -125,6 +129,9 @@ SENDGRID_EMAIL=
 - `DATABASE_URL` is the primary database connection setting.
 - `APP_BASE_URL` is used for backend-generated links such as email verification.
 - `FRONTEND_URL` is used for password reset links when you have a separate frontend.
+- `GOOGLE_CLIENT_ID` is optional, but recommended so Google token validation checks the audience claim.
+- `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET` are required for Facebook social login.
+- `APPLE_CLIENT_ID` is required for Sign in with Apple token validation.
 - `AUTO_RUN_MIGRATIONS` and `AUTO_RUN_SEEDS` are intended mainly for hosted deployment flows such as Render.
 
 For local development and Docker, keep:
@@ -411,12 +418,22 @@ curl -X POST "$BASE_URL/auth/resend-verification" \
 
 ### Social Login
 
+Supported providers:
+- `google`
+- `facebook`
+- `apple`
+
+Notes:
+- Google and Apple expect an ID token from the provider.
+- Facebook expects a user access token, but the API accepts the same `token` field for consistency.
+- The starterkit requires an email from the provider so it can map or create the local user safely.
+
 ```bash
 curl -X POST "$BASE_URL/auth/social-login" \
   -H "Content-Type: application/json" \
   -d '{
     "provider": "google",
-    "id_token": "<google-id-token>"
+    "token": "<provider-token>"
   }'
 ```
 

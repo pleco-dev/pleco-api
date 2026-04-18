@@ -213,6 +213,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/EnvelopeError'
 
+  /auth/social-login:
+    post:
+      tags: [Auth]
+      summary: Login or register using a social identity provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialLoginRequest'
+      responses:
+        '200':
+          description: Social login success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAuthTokens'
+        '400':
+          description: Invalid token, unsupported provider, or missing provider configuration
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/EnvelopeError'
+                  - $ref: '#/components/schemas/EnvelopeValidationError'
+
   /auth/admin/users:
     get:
       tags: [User]
@@ -443,6 +469,19 @@ components:
       properties:
         refresh_token:
           type: string
+    SocialLoginRequest:
+      type: object
+      required: [provider, token]
+      properties:
+        provider:
+          type: string
+          enum: [google, facebook, apple]
+        token:
+          type: string
+          description: Google and Apple expect an ID token. Facebook expects a user access token.
+        id_token:
+          type: string
+          description: Legacy alias for token, kept for backward compatibility.
     UpdateProfileRequest:
       type: object
       required: [name]

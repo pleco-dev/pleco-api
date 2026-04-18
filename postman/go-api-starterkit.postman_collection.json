@@ -17,7 +17,9 @@
     { "key": "managed_user_password", "value": "secret123" },
     { "key": "verify_token", "value": "" },
     { "key": "reset_token", "value": "" },
-    { "key": "google_id_token", "value": "" }
+    { "key": "google_id_token", "value": "" },
+    { "key": "facebook_access_token", "value": "" },
+    { "key": "apple_id_token", "value": "" }
   ],
   "item": [
     {
@@ -382,7 +384,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"provider\": \"google\",\n  \"id_token\": \"{{google_id_token}}\"\n}"
+              "raw": "{\n  \"provider\": \"google\",\n  \"token\": \"{{google_id_token}}\"\n}"
             },
             "url": "{{base_url}}/auth/social-login"
           }

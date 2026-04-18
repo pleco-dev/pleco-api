@@ -193,13 +193,18 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 }
 
 func (h *AuthHandler) SocialLogin(c *gin.Context) {
-	var body struct {
-		Provider string `json:"provider"`
-		Token    string `json:"id_token"`
-	}
-
+	var body SocialLoginRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
 		utils.ValidationError(c, utils.FormatValidationError(err))
+		return
+	}
+
+	token := body.Token
+	if token == "" {
+		token = body.IDToken
+	}
+	if token == "" {
+		utils.Error(c, http.StatusBadRequest, "social token required")
 		return
 	}
 
@@ -207,7 +212,7 @@ func (h *AuthHandler) SocialLogin(c *gin.Context) {
 	userAgent := c.GetHeader("User-Agent")
 	ip := c.ClientIP()
 
-	tokens, err := h.AuthService.SocialLogin(body.Provider, body.Token, deviceID, userAgent, ip)
+	tokens, err := h.AuthService.SocialLogin(body.Provider, token, deviceID, userAgent, ip)
 	if err != nil {
 		utils.Error(c, http.StatusBadRequest, err.Error())
 		return

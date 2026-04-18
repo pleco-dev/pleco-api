@@ -2,6 +2,7 @@ package tests
 
 import (
 	"errors"
+	"go-api-starterkit/config"
 	"go-api-starterkit/middleware"
 	auth "go-api-starterkit/modules/auth"
 	social "go-api-starterkit/modules/social"
@@ -287,6 +288,7 @@ func TestAuthService_Logout_MissingTokenIsIgnored(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		config.SocialConfig{},
 	)
 
 	err := service.Logout(1, "web")
@@ -323,6 +325,7 @@ func TestAuthService_Logout_DeletesFoundToken(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		config.SocialConfig{},
 	)
 
 	err := service.Logout(1, "web")
@@ -360,6 +363,7 @@ func TestAuthService_Register_IgnoresEmailDeliveryFailure(t *testing.T) {
 		services.NewJWTService([]byte("secret")),
 		emailSvc,
 		nil,
+		config.SocialConfig{},
 	)
 
 	err := service.Register(&user.User{
@@ -495,7 +499,7 @@ func TestSocialLogin_Success(t *testing.T) {
 	mockService := new(mocks.AuthService)
 	handler := auth.AuthHandler{AuthService: mockService}
 
-	body := `{"provider":"google","id_token":"validGoogleIdToken","device_id":"browser1","user_agent":"Mozilla/5.0","ip_address":"127.0.0.1"}`
+	body := `{"provider":"google","token":"validGoogleIdToken","device_id":"browser1","user_agent":"Mozilla/5.0","ip_address":"127.0.0.1"}`
 
 	mockService.On(
 		"SocialLogin",
@@ -524,7 +528,7 @@ func TestSocialLogin_Failure(t *testing.T) {
 	mockService := new(mocks.AuthService)
 	handler := auth.AuthHandler{AuthService: mockService}
 
-	body := `{"provider":"google","id_token":"invalidToken","device_id":"browser1","user_agent":"Mozilla/5.0","ip_address":"127.0.0.1"}`
+	body := `{"provider":"google","token":"invalidToken","device_id":"browser1","user_agent":"Mozilla/5.0","ip_address":"127.0.0.1"}`
 
 	mockService.On(
 		"SocialLogin",

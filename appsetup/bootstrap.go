@@ -4,11 +4,12 @@ import (
 	"log"
 
 	"go-api-starterkit/config"
+	migrationFiles "go-api-starterkit/migrations"
 	"go-api-starterkit/seeds"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"gorm.io/gorm"
 )
 
@@ -31,7 +32,12 @@ func RunMigrations(dbURL string) error {
 		log.Fatal("❌ DATABASE_URL is not set")
 	}
 
-	m, err := migrate.New("file://migrations", dbURL)
+	sourceDriver, err := iofs.New(migrationFiles.Files, ".")
+	if err != nil {
+		return err
+	}
+
+	m, err := migrate.NewWithSourceInstance("iofs", sourceDriver, dbURL)
 	if err != nil {
 		return err
 	}

@@ -1,8 +1,8 @@
 package tests
 
 import (
-	"go-api-starterkit/middleware"
-	user "go-api-starterkit/modules/user"
+	"go-api-starterkit/internal/middleware"
+	user "go-api-starterkit/internal/modules/user"
 	"net/http"
 	"net/http/httptest"
 	"strings"

@@ -3,8 +3,8 @@
 package mocks
 
 import (
-	auth "go-api-starterkit/modules/auth"
-	user "go-api-starterkit/modules/user"
+	auth "go-api-starterkit/internal/modules/auth"
+	user "go-api-starterkit/internal/modules/user"
 
 	mock "github.com/stretchr/testify/mock"
 )

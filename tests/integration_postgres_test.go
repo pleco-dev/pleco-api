@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"go-api-starterkit/modules/audit"
-	"go-api-starterkit/modules/permission"
+	"go-api-starterkit/internal/modules/audit"
+	"go-api-starterkit/internal/modules/permission"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

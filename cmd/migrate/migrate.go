@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"go-api-starterkit/appsetup"
-	"go-api-starterkit/config"
+	"go-api-starterkit/internal/appsetup"
+	"go-api-starterkit/internal/config"
 )
 
 func main() {

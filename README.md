@@ -23,7 +23,7 @@ This repository uses a modular structure centered around:
 cp .env.example .env
 go run ./cmd/migrate
 go run ./cmd/seed
-go run .
+go run ./cmd/api
 ```
 
 ### Docker
@@ -82,18 +82,20 @@ This project provides:
 
 ```text
 .
-├── appsetup/         # app bootstrap and route registration
-├── cmd/              # migration and seed entrypoints
-├── config/           # env, db, and app config
+├── cmd/              # API, migration, and seed entrypoints
 ├── docs/             # OpenAPI documentation
+├── internal/         # application-only packages
+│   ├── appsetup/     # app bootstrap and route registration
+│   ├── config/       # env, db, and app config
+│   ├── httpx/        # response helpers
+│   ├── middleware/   # shared HTTP middleware
+│   ├── modules/      # modular business domains
+│   ├── seeds/        # seed logic
+│   └── services/     # shared services (jwt, email)
 ├── migrations/       # SQL migrations
-├── modules/          # modular business domains
 ├── postman/          # manual API testing assets
-├── routes/           # compatibility route entrypoint
-├── seeds/            # seed logic
-├── services/         # shared services (jwt, email)
 ├── tests/            # tests and mocks
-└── utils/            # helpers
+└── main.go           # compatibility entrypoint
 ```
 
 ## Requirements
@@ -170,7 +172,7 @@ go run ./cmd/seed
 ### 4. Start the application
 
 ```bash
-go run .
+go run ./cmd/api
 ```
 
 By default the API will be available at:
@@ -180,6 +182,14 @@ http://localhost:8080
 ```
 
 The app respects the `PORT` environment variable automatically.
+
+Compatibility note:
+
+```bash
+go run .
+```
+
+still works, but `go run ./cmd/api` is now the recommended entrypoint.
 
 ## API Conventions
 
@@ -777,11 +787,12 @@ make db-setup
 
 ## Current Architecture Notes
 
-- app bootstrap lives in [`appsetup/`](appsetup)
-- runtime configuration is centralized in [`config/app.go`](config/app.go)
-- auth service logic is split by use case under [`modules/auth/`](modules/auth)
+- app bootstrap lives in [`internal/appsetup/`](internal/appsetup)
+- runtime configuration is centralized in [`internal/config/app.go`](internal/config/app.go)
+- auth service logic is split by use case under [`internal/modules/auth/`](internal/modules/auth)
 - repository constructors now take explicit DB dependencies instead of relying on global DB state
 - admin routes now use permission checks instead of role-only checks for finer authorization control
+- the recommended Go entrypoint now lives in [`cmd/api/`](cmd/api)
 
 ## Security Notes
 

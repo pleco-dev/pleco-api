@@ -47,6 +47,9 @@ func SeedPermissions(db *gorm.DB) map[string]permissionModule.Permission {
 		"user.update",
 		"user.delete",
 		"audit.read",
+		"role.read",
+		"permission.read",
+		"role.update_permissions",
 	}
 	permMap := make(map[string]permissionModule.Permission)
 
@@ -75,6 +78,9 @@ func SeedRolePermissions(db *gorm.DB) {
 			"user.update",
 			"user.delete",
 			"audit.read",
+			"role.read",
+			"permission.read",
+			"role.update_permissions",
 		},
 		"user": {},
 	}

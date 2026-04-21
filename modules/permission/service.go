@@ -19,3 +19,7 @@ func (s *Service) HasPermission(roleName, permission string) (bool, error) {
 
 	return s.Repo.HasRolePermission(roleName, permission)
 }
+
+func (s *Service) ListAll() ([]Permission, error) {
+	return s.Repo.ListAllPermissions()
+}

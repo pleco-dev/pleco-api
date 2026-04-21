@@ -4,6 +4,7 @@ import "gorm.io/gorm"
 
 type Repository interface {
 	FindByID(id uint) (*Role, error)
+	FindAll() ([]Role, error)
 }
 
 type GormRepository struct {
@@ -23,4 +24,13 @@ func (r *GormRepository) FindByID(id uint) (*Role, error) {
 	}
 
 	return &role, nil
+}
+
+func (r *GormRepository) FindAll() ([]Role, error) {
+	var roles []Role
+	if err := r.db.Order("id ASC").Find(&roles).Error; err != nil {
+		return nil, err
+	}
+
+	return roles, nil
 }

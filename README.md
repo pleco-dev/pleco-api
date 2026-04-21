@@ -528,6 +528,44 @@ curl -X GET "$BASE_URL/auth/admin/audit-logs?page=1&limit=10&resource=user" \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
 
+### Admin: Get Roles
+
+```bash
+curl -X GET "$BASE_URL/auth/admin/roles" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### Admin: Get Permissions
+
+```bash
+curl -X GET "$BASE_URL/auth/admin/permissions" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### Admin: Get Role Permissions
+
+```bash
+curl -X GET "$BASE_URL/auth/admin/roles/2/permissions" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### Admin: Update Role Permissions
+
+```bash
+curl -X PUT "$BASE_URL/auth/admin/roles/2/permissions" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "permissions": [
+      "user.read_all",
+      "user.read",
+      "permission.read",
+      "role.read",
+      "role.update_permissions"
+    ]
+  }'
+```
+
 ## Docker Workflow
 
 This repository includes:
@@ -728,6 +766,10 @@ make db-setup
 - `PUT /auth/admin/users/:id`
 - `DELETE /auth/admin/users/:id`
 - `GET /auth/admin/audit-logs`
+- `GET /auth/admin/roles`
+- `GET /auth/admin/permissions`
+- `GET /auth/admin/roles/:id/permissions`
+- `PUT /auth/admin/roles/:id/permissions`
 
 ### Health
 

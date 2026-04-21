@@ -321,6 +321,90 @@ paths:
                   - $ref: '#/components/schemas/EnvelopeError'
                   - $ref: '#/components/schemas/EnvelopeValidationError'
 
+  /auth/admin/roles:
+    get:
+      tags: [User]
+      summary: List all roles
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Roles fetched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeRoles'
+
+  /auth/admin/permissions:
+    get:
+      tags: [User]
+      summary: List all permissions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Permissions fetched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePermissions'
+
+  /auth/admin/roles/{id}/permissions:
+    get:
+      tags: [User]
+      summary: Get a role with its permission list
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      responses:
+        '200':
+          description: Role permissions fetched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeRolePermissions'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+    put:
+      tags: [User]
+      summary: Replace the permission set for a role
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRolePermissionsRequest'
+      responses:
+        '200':
+          description: Role permissions updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeRolePermissions'
+        '400':
+          description: Invalid permissions
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/EnvelopeError'
+                  - $ref: '#/components/schemas/EnvelopeValidationError'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
   /auth/admin/users:
     get:
       tags: [User]
@@ -640,6 +724,39 @@ components:
           format: date-time
         is_current:
           type: boolean
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    Permission:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    UpdateRolePermissionsRequest:
+      type: object
+      required: [permissions]
+      properties:
+        permissions:
+          type: array
+          items:
+            type: string
+    RolePermissions:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
     User:
       type: object
       properties:
@@ -752,6 +869,40 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Session'
+    EnvelopeRoles:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+    EnvelopePermissions:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Permission'
+    EnvelopeRolePermissions:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/RolePermissions'
     EnvelopeProfile:
       type: object
       properties:

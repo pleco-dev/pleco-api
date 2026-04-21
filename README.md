@@ -587,6 +587,27 @@ Notes:
 - Startup auto-run for migrations and seeds is supported through the app bootstrap.
 - A Render Blueprint starter is included in [`render.yaml`](render.yaml).
 
+### Manual Neon Migration Commands
+
+If you want to initialize Neon before deploying the app, use these dedicated targets:
+
+```bash
+make neon-migrate NEON_DATABASE_URL='postgresql://<user>:<password>@<your-neon-host>/<db>?sslmode=require'
+make neon-seed NEON_DATABASE_URL='postgresql://<user>:<password>@<your-neon-host>/<db>?sslmode=require'
+```
+
+Or run both in one step:
+
+```bash
+make neon-db-setup NEON_DATABASE_URL='postgresql://<user>:<password>@<your-neon-host>/<db>?sslmode=require'
+```
+
+Notes:
+- These targets use the Go `cmd/migrate` and `cmd/seed` entrypoints directly.
+- You do not need the external `migrate` CLI installed for the Neon-specific targets.
+- `neon-seed` will also read `ADMIN_EMAIL` and `ADMIN_PASSWORD` from your environment or `.env` if you want the initial admin user created.
+- This is the safer pattern for Vercel-style deployment flows, where schema setup should happen outside app startup.
+
 ## Makefile Shortcuts
 
 ```bash
@@ -599,6 +620,9 @@ make migrate-force VERSION=1
 make migrate-drop
 make seed
 make db-setup
+make neon-migrate NEON_DATABASE_URL='postgresql://...sslmode=require'
+make neon-seed NEON_DATABASE_URL='postgresql://...sslmode=require'
+make neon-db-setup NEON_DATABASE_URL='postgresql://...sslmode=require'
 make docker-up
 make docker-down
 make docker-logs

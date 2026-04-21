@@ -54,7 +54,7 @@ This project provides:
 - permission-based authorization for admin actions
 - database migration and seeding
 - local Docker workflow
-- Render deployment support
+- generic PostgreSQL-based deployment support
 
 ## Tech Stack
 
@@ -105,7 +105,6 @@ Copy one of the example files depending on your workflow:
 
 - local development: [`.env.example`](.env.example)
 - Docker: [`.env.docker.example`](.env.docker.example)
-- Render: [`.env.render.example`](.env.render.example)
 
 ### Common Variables
 
@@ -132,7 +131,7 @@ APPLE_CLIENT_ID=
 - `GOOGLE_CLIENT_ID` is optional, but recommended so Google token validation checks the audience claim.
 - `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET` are required for Facebook social login.
 - `APPLE_CLIENT_ID` is required for Sign in with Apple token validation.
-- `AUTO_RUN_MIGRATIONS` and `AUTO_RUN_SEEDS` are intended mainly for hosted deployment flows such as Render.
+- `AUTO_RUN_MIGRATIONS` and `AUTO_RUN_SEEDS` are optional flags if you intentionally want schema setup at app startup.
 
 For local development and Docker, keep:
 
@@ -557,56 +556,22 @@ make seed
 
 `make migrate-*` uses `DATABASE_URL` when it is present.
 
-## Deploying to Render with Neon
+## Deployment Notes
 
-Recommended Render setup:
-- Service type: `Web Service`
-- Runtime: `Go`
-- Build command: `go build -tags netgo -ldflags '-s -w' -o app .`
-- Start command: `./app`
-- Health check path: `/health`
+This starterkit is designed to stay platform-agnostic.
 
-Recommended environment variables:
+Recommended production approach:
+- provide a PostgreSQL-compatible `DATABASE_URL`
+- run migrations before serving traffic
+- run seed data only when you intentionally need initial roles, permissions, or admin users
+- inject secrets through your deployment platform instead of committing real env files
 
-```env
-DATABASE_URL=postgresql://<user>:<password>@<your-neon-host>/<db>?sslmode=require
-AUTO_RUN_MIGRATIONS=true
-AUTO_RUN_SEEDS=true
-JWT_SECRET=replace-with-a-long-random-secret
-APP_BASE_URL=https://<your-render-service>.onrender.com
-FRONTEND_URL=https://<your-frontend-domain>
-SENDGRID_API_KEY=...
-SENDGRID_EMAIL=...
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=supersecret
-```
-
-Notes:
-- Prefer Neon direct connection strings first.
-- Use `sslmode=require` with Neon.
-- Startup auto-run for migrations and seeds is supported through the app bootstrap.
-- A Render Blueprint starter is included in [`render.yaml`](render.yaml).
-
-### Manual Neon Migration Commands
-
-If you want to initialize Neon before deploying the app, use these dedicated targets:
+Example build and start commands for generic Go platforms:
 
 ```bash
-make neon-migrate NEON_DATABASE_URL='postgresql://<user>:<password>@<your-neon-host>/<db>?sslmode=require'
-make neon-seed NEON_DATABASE_URL='postgresql://<user>:<password>@<your-neon-host>/<db>?sslmode=require'
+go build -tags netgo -ldflags '-s -w' -o app .
+./app
 ```
-
-Or run both in one step:
-
-```bash
-make neon-db-setup NEON_DATABASE_URL='postgresql://<user>:<password>@<your-neon-host>/<db>?sslmode=require'
-```
-
-Notes:
-- These targets use the Go `cmd/migrate` and `cmd/seed` entrypoints directly.
-- You do not need the external `migrate` CLI installed for the Neon-specific targets.
-- `neon-seed` will also read `ADMIN_EMAIL` and `ADMIN_PASSWORD` from your environment or `.env` if you want the initial admin user created.
-- This is the safer pattern for Vercel-style deployment flows, where schema setup should happen outside app startup.
 
 ## Makefile Shortcuts
 
@@ -620,9 +585,6 @@ make migrate-force VERSION=1
 make migrate-drop
 make seed
 make db-setup
-make neon-migrate NEON_DATABASE_URL='postgresql://...sslmode=require'
-make neon-seed NEON_DATABASE_URL='postgresql://...sslmode=require'
-make neon-db-setup NEON_DATABASE_URL='postgresql://...sslmode=require'
 make docker-up
 make docker-down
 make docker-logs
@@ -691,13 +653,6 @@ or:
 make db-setup
 ```
 
-For Render, make sure:
-
-```env
-AUTO_RUN_MIGRATIONS=true
-AUTO_RUN_SEEDS=true
-```
-
 ## Main Endpoints
 
 ### Auth
@@ -758,7 +713,7 @@ The codebase has gone through:
 - auth hardening
 - bootstrap/config standardization
 - audit trail foundation for auth and user management
-- local, Docker, and Render deployment preparation
+- local and Docker development preparation
 - Postman manual testing setup
 
 The current repository state passes the test suite.

@@ -7,7 +7,7 @@ else
 DB_URL := $(DATABASE_URL)
 endif
 
-.PHONY: migrate-up migrate-down migrate-down-all migrate-status migrate-force migrate-create migrate-drop seed db-setup neon-migrate neon-seed neon-db-setup docker-up docker-down docker-logs docker-rebuild
+.PHONY: migrate-up migrate-down migrate-down-all migrate-status migrate-force migrate-create migrate-drop seed db-setup docker-up docker-down docker-logs docker-rebuild
 
 migrate-up:
 	migrate -path migrations -database "$(DB_URL)" up
@@ -40,20 +40,6 @@ seed:
 	go run cmd/seed/seed.go
 
 db-setup: migrate-up seed
-
-neon-migrate:
-ifndef NEON_DATABASE_URL
-	$(error NEON_DATABASE_URL is undefined. Usage: make neon-migrate NEON_DATABASE_URL='postgresql://...sslmode=require')
-endif
-	DATABASE_URL="$(NEON_DATABASE_URL)" go run ./cmd/migrate
-
-neon-seed:
-ifndef NEON_DATABASE_URL
-	$(error NEON_DATABASE_URL is undefined. Usage: make neon-seed NEON_DATABASE_URL='postgresql://...sslmode=require')
-endif
-	DATABASE_URL="$(NEON_DATABASE_URL)" go run ./cmd/seed
-
-neon-db-setup: neon-migrate neon-seed
 
 docker-up:
 	docker-compose --env-file .env.docker up --build

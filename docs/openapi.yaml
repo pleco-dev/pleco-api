@@ -579,6 +579,28 @@ paths:
           name: resource
           schema:
             type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: actor_user_id
+          schema:
+            type: integer
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: date_from
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: date_to
+          schema:
+            type: string
+            format: date-time
       responses:
         '200':
           description: Audit logs fetched
@@ -586,6 +608,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EnvelopeAuditLogs'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /auth/admin/audit-logs/export:
+    get:
+      tags: [Audit]
+      summary: Export audit logs as CSV
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: action
+          schema:
+            type: string
+        - in: query
+          name: resource
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: actor_user_id
+          schema:
+            type: integer
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: date_from
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: date_to
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: CSV export of audit logs
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
         '403':
           description: Forbidden
           content:
@@ -978,3 +1052,18 @@ components:
               type: string
             resource:
               type: string
+            status:
+              type: string
+            actor_user_id:
+              type: integer
+              nullable: true
+            search:
+              type: string
+            date_from:
+              type: string
+              format: date-time
+              nullable: true
+            date_to:
+              type: string
+              format: date-time
+              nullable: true

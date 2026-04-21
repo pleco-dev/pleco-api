@@ -643,7 +643,30 @@
             "header": [
               { "key": "Authorization", "value": "Bearer {{access_token}}" }
             ],
-            "url": "{{base_url}}/auth/admin/audit-logs?page=1&limit=10"
+            "url": "{{base_url}}/auth/admin/audit-logs?page=1&limit=10&resource=user&status=success&search=admin"
+          }
+        },
+        {
+          "name": "Export Audit Logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('export audit logs returns known status', function () {",
+                  "  pm.expect([200, 403]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{base_url}}/auth/admin/audit-logs/export?resource=user&status=success"
           }
         },
         {

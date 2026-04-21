@@ -1,6 +1,11 @@
 package audit
 
-import "log"
+import (
+	"bytes"
+	"encoding/csv"
+	"log"
+	"strconv"
+)
 
 type RecordInput struct {
 	ActorUserID *uint
@@ -46,6 +51,62 @@ func (s *Service) SafeRecord(input RecordInput) {
 	}
 }
 
-func (s *Service) GetLogs(page, limit int, action, resource string) ([]AuditLog, int64, error) {
-	return s.Repo.FindAllWithFilter(page, limit, action, resource)
+func (s *Service) GetLogs(filter Filter) ([]AuditLog, int64, error) {
+	return s.Repo.FindAllWithFilter(filter)
+}
+
+func (s *Service) ExportLogsCSV(filter Filter) ([]byte, error) {
+	logs, err := s.Repo.FindForExport(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
+
+	if err := writer.Write([]string{
+		"id",
+		"created_at",
+		"actor_user_id",
+		"action",
+		"resource",
+		"resource_id",
+		"status",
+		"description",
+		"ip_address",
+		"user_agent",
+	}); err != nil {
+		return nil, err
+	}
+
+	for _, logEntry := range logs {
+		if err := writer.Write([]string{
+			strconv.FormatUint(uint64(logEntry.ID), 10),
+			logEntry.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+			uintPointerString(logEntry.ActorUserID),
+			logEntry.Action,
+			logEntry.Resource,
+			uintPointerString(logEntry.ResourceID),
+			logEntry.Status,
+			logEntry.Description,
+			logEntry.IPAddress,
+			logEntry.UserAgent,
+		}); err != nil {
+			return nil, err
+		}
+	}
+
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func uintPointerString(value *uint) string {
+	if value == nil {
+		return ""
+	}
+	return strconv.FormatUint(uint64(*value), 10)
 }

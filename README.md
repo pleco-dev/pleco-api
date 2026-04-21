@@ -535,7 +535,14 @@ curl -X DELETE "$BASE_URL/auth/admin/users/1" \
 ### Admin: Get Audit Logs
 
 ```bash
-curl -X GET "$BASE_URL/auth/admin/audit-logs?page=1&limit=10&resource=user" \
+curl -X GET "$BASE_URL/auth/admin/audit-logs?page=1&limit=10&resource=user&status=success&actor_user_id=1&search=admin&date_from=2026-04-20T00:00:00Z&date_to=2026-04-21T00:00:00Z" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### Admin: Export Audit Logs
+
+```bash
+curl -X GET "$BASE_URL/auth/admin/audit-logs/export?resource=user&status=success" \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
 
@@ -777,6 +784,7 @@ make db-setup
 - `PUT /auth/admin/users/:id`
 - `DELETE /auth/admin/users/:id`
 - `GET /auth/admin/audit-logs`
+- `GET /auth/admin/audit-logs/export`
 - `GET /auth/admin/roles`
 - `GET /auth/admin/permissions`
 - `GET /auth/admin/roles/:id/permissions`

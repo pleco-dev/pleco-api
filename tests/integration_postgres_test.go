@@ -98,16 +98,24 @@ func TestAuditRepository_FindAllWithFilter_WithTempTable(t *testing.T) {
 
 	now := time.Now()
 	require.NoError(t, tx.Exec(`
-		INSERT INTO audit_logs (created_at, updated_at, action, resource, status, description)
+		INSERT INTO audit_logs (created_at, updated_at, actor_user_id, action, resource, status, description, ip_address)
 		VALUES
-			(?, ?, 'login', 'auth', 'success', 'user logged in'),
-			(?, ?, 'create_user', 'user', 'success', 'admin created user'),
-			(?, ?, 'update_user', 'user', 'success', 'admin updated user')
+			(?, ?, 1, 'login', 'auth', 'failed', 'bad password', '203.0.113.1'),
+			(?, ?, 2, 'create_user', 'user', 'success', 'admin created user', '203.0.113.2'),
+			(?, ?, 2, 'update_user', 'user', 'success', 'admin updated user', '203.0.113.3')
 	`, now.Add(-3*time.Minute), now.Add(-3*time.Minute), now.Add(-2*time.Minute), now.Add(-2*time.Minute), now.Add(-1*time.Minute), now.Add(-1*time.Minute)).Error)
 
 	repo := audit.NewRepository(tx)
 
-	logs, total, err := repo.FindAllWithFilter(1, 10, "", "user")
+	actorID := uint(2)
+	logs, total, err := repo.FindAllWithFilter(audit.Filter{
+		Page:        1,
+		Limit:       10,
+		Resource:    "user",
+		Status:      "success",
+		ActorUserID: &actorID,
+		Search:      "admin",
+	})
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), total)
 	require.Len(t, logs, 2)

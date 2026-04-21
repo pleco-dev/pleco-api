@@ -17,6 +17,7 @@
     { "key": "managed_user_password", "value": "secret123" },
     { "key": "verify_token", "value": "" },
     { "key": "reset_token", "value": "" },
+    { "key": "session_id", "value": "" },
     { "key": "google_id_token", "value": "" },
     { "key": "facebook_access_token", "value": "" },
     { "key": "apple_id_token", "value": "" }
@@ -258,6 +259,109 @@
               { "key": "X-Device-ID", "value": "{{device_id}}" }
             ],
             "url": "{{base_url}}/auth/logout"
+          }
+        },
+        {
+          "name": "List Sessions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('list sessions returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "const sessions = json.data || [];",
+                  "pm.test('list sessions returns an array', function () {",
+                  "  pm.expect(Array.isArray(sessions)).to.eql(true);",
+                  "});",
+                  "if (sessions.length > 0 && sessions[0].id) {",
+                  "  pm.environment.set('session_id', sessions[0].id);",
+                  "  console.log('session_id set:', sessions[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "X-Device-ID", "value": "{{device_id}}" }
+            ],
+            "url": "{{base_url}}/auth/sessions"
+          }
+        },
+        {
+          "name": "Revoke Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('revoke session returns known status', function () {",
+                  "  pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{base_url}}/auth/sessions/{{session_id}}"
+          }
+        },
+        {
+          "name": "Logout Other Sessions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('logout other sessions returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "X-Device-ID", "value": "{{device_id}}" }
+            ],
+            "url": "{{base_url}}/auth/logout-others"
+          }
+        },
+        {
+          "name": "Logout All Sessions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('logout all sessions returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": "{{base_url}}/auth/logout-all"
           }
         },
         {

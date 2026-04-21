@@ -45,8 +45,95 @@ func (s *authService) Logout(userID uint, deviceID string) error {
 	return nil
 }
 
-func (s *authService) LogoutAll(userID uint) error {
-	return s.RefreshTokenRepo.DeleteByUser(userID)
+func (s *authService) LogoutAll(userID uint, userAgent, ipAddress string) error {
+	if err := s.RefreshTokenRepo.DeleteByUser(userID); err != nil {
+		return err
+	}
+
+	s.AuditSvc.SafeRecord(audit.RecordInput{
+		ActorUserID: &userID,
+		Action:      "logout_all",
+		Resource:    "auth",
+		ResourceID:  &userID,
+		Status:      "success",
+		Description: "all sessions revoked",
+		UserAgent:   userAgent,
+		IPAddress:   ipAddress,
+	})
+
+	return nil
+}
+
+func (s *authService) LogoutOtherSessions(userID uint, currentDeviceID, userAgent, ipAddress string) error {
+	if err := s.RefreshTokenRepo.DeleteByUserExceptDevice(userID, currentDeviceID); err != nil {
+		return err
+	}
+
+	s.AuditSvc.SafeRecord(audit.RecordInput{
+		ActorUserID: &userID,
+		Action:      "logout_other_sessions",
+		Resource:    "auth",
+		ResourceID:  &userID,
+		Status:      "success",
+		Description: "other sessions revoked",
+		UserAgent:   userAgent,
+		IPAddress:   ipAddress,
+	})
+
+	return nil
+}
+
+func (s *authService) ListSessions(userID uint, currentDeviceID string) ([]Session, error) {
+	tokens, err := s.RefreshTokenRepo.FindByUser(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	sessions := make([]Session, 0, len(tokens))
+	for _, token := range tokens {
+		sessions = append(sessions, Session{
+			ID:        token.ID,
+			DeviceID:  token.DeviceID,
+			UserAgent: token.UserAgent,
+			IPAddress: token.IPAddress,
+			CreatedAt: token.CreatedAt,
+			UpdatedAt: token.UpdatedAt,
+			ExpiredAt: token.ExpiredAt,
+			IsCurrent: currentDeviceID != "" && token.DeviceID == currentDeviceID,
+		})
+	}
+
+	return sessions, nil
+}
+
+func (s *authService) RevokeSession(userID, sessionID uint, userAgent, ipAddress string) error {
+	session, err := s.RefreshTokenRepo.FindByID(sessionID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("session not found")
+		}
+		return err
+	}
+	if session.UserID != userID {
+		return errors.New("session not found")
+	}
+
+	if err := s.RefreshTokenRepo.DeleteByUserAndID(userID, sessionID); err != nil {
+		return err
+	}
+
+	s.AuditSvc.SafeRecord(audit.RecordInput{
+		ActorUserID: &userID,
+		Action:      "revoke_session",
+		Resource:    "auth",
+		ResourceID:  &userID,
+		Status:      "success",
+		Description: "session revoked",
+		UserAgent:   userAgent,
+		IPAddress:   ipAddress,
+	})
+
+	return nil
 }
 
 func (s *authService) RefreshToken(oldRefreshToken string) (*AuthTokens, error) {

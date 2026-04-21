@@ -23,12 +23,24 @@ import (
 )
 
 type stubRefreshTokenRepo struct {
+	findByID            func(id uint) (*token.RefreshToken, error)
 	findByUserAndDevice func(userID uint, deviceID string) (*token.RefreshToken, error)
+	findByUser          func(userID uint) ([]token.RefreshToken, error)
 	deleteByID          func(id uint) error
+	deleteByUserAndID   func(userID, id uint) error
+	deleteByUser        func(userID uint) error
+	deleteByUserExcept  func(userID uint, deviceID string) error
 }
 
 func (s *stubRefreshTokenRepo) Save(_ *token.RefreshToken) error {
 	return nil
+}
+
+func (s *stubRefreshTokenRepo) FindByID(id uint) (*token.RefreshToken, error) {
+	if s.findByID != nil {
+		return s.findByID(id)
+	}
+	return nil, gorm.ErrRecordNotFound
 }
 
 func (s *stubRefreshTokenRepo) FindByUserAndDevice(userID uint, deviceID string) (*token.RefreshToken, error) {
@@ -38,7 +50,10 @@ func (s *stubRefreshTokenRepo) FindByUserAndDevice(userID uint, deviceID string)
 	return nil, nil
 }
 
-func (s *stubRefreshTokenRepo) FindByUser(_ uint) ([]token.RefreshToken, error) {
+func (s *stubRefreshTokenRepo) FindByUser(userID uint) ([]token.RefreshToken, error) {
+	if s.findByUser != nil {
+		return s.findByUser(userID)
+	}
 	return nil, nil
 }
 
@@ -49,7 +64,24 @@ func (s *stubRefreshTokenRepo) DeleteByID(id uint) error {
 	return nil
 }
 
-func (s *stubRefreshTokenRepo) DeleteByUser(_ uint) error {
+func (s *stubRefreshTokenRepo) DeleteByUserAndID(userID, id uint) error {
+	if s.deleteByUserAndID != nil {
+		return s.deleteByUserAndID(userID, id)
+	}
+	return nil
+}
+
+func (s *stubRefreshTokenRepo) DeleteByUser(userID uint) error {
+	if s.deleteByUser != nil {
+		return s.deleteByUser(userID)
+	}
+	return nil
+}
+
+func (s *stubRefreshTokenRepo) DeleteByUserExceptDevice(userID uint, deviceID string) error {
+	if s.deleteByUserExcept != nil {
+		return s.deleteByUserExcept(userID, deviceID)
+	}
 	return nil
 }
 
@@ -376,6 +408,143 @@ func TestAuthService_Register_IgnoresEmailDeliveryFailure(t *testing.T) {
 	assert.Equal(t, 1, createdVerification)
 }
 
+func TestAuthService_ListSessions_MarksCurrentDevice(t *testing.T) {
+	refreshRepo := &stubRefreshTokenRepo{
+		findByUser: func(userID uint) ([]token.RefreshToken, error) {
+			assert.Equal(t, uint(7), userID)
+			return []token.RefreshToken{
+				{
+					Model:     gorm.Model{ID: 2, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+					UserID:    7,
+					DeviceID:  "phone",
+					UserAgent: "Mobile",
+					IPAddress: "10.0.0.2",
+					ExpiredAt: time.Now().Add(time.Hour),
+				},
+				{
+					Model:     gorm.Model{ID: 1, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+					UserID:    7,
+					DeviceID:  "web",
+					UserAgent: "Browser",
+					IPAddress: "10.0.0.1",
+					ExpiredAt: time.Now().Add(time.Hour),
+				},
+			}, nil
+		},
+	}
+
+	service := auth.NewAuthService(
+		nil,
+		&stubUserRepo{},
+		refreshRepo,
+		&stubEmailVerificationRepo{},
+		&stubSocialRepo{},
+		nil,
+		nil,
+		nil,
+		config.SocialConfig{},
+	)
+
+	sessions, err := service.ListSessions(7, "web")
+
+	assert.NoError(t, err)
+	assert.Len(t, sessions, 2)
+	assert.Equal(t, uint(2), sessions[0].ID)
+	assert.False(t, sessions[0].IsCurrent)
+	assert.Equal(t, uint(1), sessions[1].ID)
+	assert.True(t, sessions[1].IsCurrent)
+}
+
+func TestAuthService_LogoutOtherSessions(t *testing.T) {
+	refreshRepo := &stubRefreshTokenRepo{
+		deleteByUserExcept: func(userID uint, deviceID string) error {
+			assert.Equal(t, uint(9), userID)
+			assert.Equal(t, "web", deviceID)
+			return nil
+		},
+	}
+
+	service := auth.NewAuthService(
+		nil,
+		&stubUserRepo{},
+		refreshRepo,
+		&stubEmailVerificationRepo{},
+		&stubSocialRepo{},
+		nil,
+		nil,
+		nil,
+		config.SocialConfig{},
+	)
+
+	err := service.LogoutOtherSessions(9, "web", "Browser", "127.0.0.1")
+
+	assert.NoError(t, err)
+}
+
+func TestAuthService_RevokeSession_DeletesOwnedSession(t *testing.T) {
+	var deletedSessionID uint
+
+	refreshRepo := &stubRefreshTokenRepo{
+		findByID: func(id uint) (*token.RefreshToken, error) {
+			assert.Equal(t, uint(4), id)
+			return &token.RefreshToken{
+				Model:    gorm.Model{ID: 4},
+				UserID:   11,
+				DeviceID: "tablet",
+			}, nil
+		},
+		deleteByUserAndID: func(userID, id uint) error {
+			assert.Equal(t, uint(11), userID)
+			deletedSessionID = id
+			return nil
+		},
+	}
+
+	service := auth.NewAuthService(
+		nil,
+		&stubUserRepo{},
+		refreshRepo,
+		&stubEmailVerificationRepo{},
+		&stubSocialRepo{},
+		nil,
+		nil,
+		nil,
+		config.SocialConfig{},
+	)
+
+	err := service.RevokeSession(11, 4, "Browser", "127.0.0.1")
+
+	assert.NoError(t, err)
+	assert.Equal(t, uint(4), deletedSessionID)
+}
+
+func TestAuthService_RevokeSession_RejectsForeignSession(t *testing.T) {
+	refreshRepo := &stubRefreshTokenRepo{
+		findByID: func(id uint) (*token.RefreshToken, error) {
+			return &token.RefreshToken{
+				Model:  gorm.Model{ID: id},
+				UserID: 99,
+			}, nil
+		},
+	}
+
+	service := auth.NewAuthService(
+		nil,
+		&stubUserRepo{},
+		refreshRepo,
+		&stubEmailVerificationRepo{},
+		&stubSocialRepo{},
+		nil,
+		nil,
+		nil,
+		config.SocialConfig{},
+	)
+
+	err := service.RevokeSession(11, 4, "Browser", "127.0.0.1")
+
+	assert.EqualError(t, err, "session not found")
+}
+
 func TestRefreshToken_Success(t *testing.T) {
 	mockService := new(mocks.AuthService)
 	handler := auth.AuthHandler{AuthService: mockService}
@@ -548,4 +717,69 @@ func TestSocialLogin_Failure(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	mockService.AssertExpectations(t)
+}
+
+func TestResetPassword_ValidationFailure(t *testing.T) {
+	mockService := new(mocks.AuthService)
+	handler := auth.AuthHandler{AuthService: mockService}
+
+	body := `{"token":"token123","new_password":"short"}`
+
+	c, w := setupTest()
+	req := httptest.NewRequest(http.MethodPost, "/reset", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	c.Request = req
+
+	handler.ResetPassword(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	assert.Equal(t, "error", bodyMap["status"])
+	assert.Contains(t, bodyMap["message"], "Validation failed")
+	mockService.AssertNotCalled(t, "ResetPassword", mock.Anything, mock.Anything)
+}
+
+func TestAuthRateLimiter_ReturnsTooManyRequests(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	limiter := middleware.NewRateLimiter(1, time.Minute)
+
+	router.POST("/auth/login", limiter.Middleware(), func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	firstReq := httptest.NewRequest(http.MethodPost, "/auth/login", nil)
+	firstReq.RemoteAddr = "203.0.113.10:1234"
+	firstResp := httptest.NewRecorder()
+	router.ServeHTTP(firstResp, firstReq)
+
+	secondReq := httptest.NewRequest(http.MethodPost, "/auth/login", nil)
+	secondReq.RemoteAddr = "203.0.113.10:1234"
+	secondResp := httptest.NewRecorder()
+	router.ServeHTTP(secondResp, secondReq)
+
+	assert.Equal(t, http.StatusOK, firstResp.Code)
+	assert.Equal(t, http.StatusTooManyRequests, secondResp.Code)
+	bodyMap := decodeBodyMap(t, secondResp)
+	assert.Equal(t, "error", bodyMap["status"])
+	assert.Equal(t, "too many requests", bodyMap["message"])
+}
+
+func TestSecurityHeadersMiddleware_SetsExpectedHeaders(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(middleware.SecurityHeaders())
+	router.GET("/health", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+
+	assert.Equal(t, "nosniff", resp.Header().Get("X-Content-Type-Options"))
+	assert.Equal(t, "DENY", resp.Header().Get("X-Frame-Options"))
+	assert.Equal(t, "no-referrer", resp.Header().Get("Referrer-Policy"))
+	assert.Equal(t, "none", resp.Header().Get("X-Permitted-Cross-Domain-Policies"))
 }

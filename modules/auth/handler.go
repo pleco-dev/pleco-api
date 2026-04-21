@@ -3,6 +3,7 @@ package auth
 import (
 	"go-api-starterkit/utils"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -76,6 +77,48 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	utils.Success(c, http.StatusOK, "logout success", nil, nil)
 }
 
+func (h *AuthHandler) LogoutAll(c *gin.Context) {
+	userID, ok := utils.GetUserIDFromContext(c)
+	if !ok {
+		utils.Error(c, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	userAgent := c.GetHeader("User-Agent")
+	ipAddress := c.ClientIP()
+
+	if err := h.AuthService.LogoutAll(userID, userAgent, ipAddress); err != nil {
+		utils.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	utils.Success(c, http.StatusOK, "all sessions revoked", nil, nil)
+}
+
+func (h *AuthHandler) LogoutOtherSessions(c *gin.Context) {
+	userID, ok := utils.GetUserIDFromContext(c)
+	if !ok {
+		utils.Error(c, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	currentDeviceID := c.GetHeader("X-Device-ID")
+	if currentDeviceID == "" {
+		utils.Error(c, http.StatusBadRequest, "device id required")
+		return
+	}
+
+	userAgent := c.GetHeader("User-Agent")
+	ipAddress := c.ClientIP()
+
+	if err := h.AuthService.LogoutOtherSessions(userID, currentDeviceID, userAgent, ipAddress); err != nil {
+		utils.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	utils.Success(c, http.StatusOK, "other sessions revoked", nil, nil)
+}
+
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var body struct {
 		RefreshToken string `json:"refresh_token"`
@@ -93,6 +136,51 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	utils.Success(c, http.StatusOK, "Refresh token success", tokens, nil)
+}
+
+func (h *AuthHandler) ListSessions(c *gin.Context) {
+	userID, ok := utils.GetUserIDFromContext(c)
+	if !ok {
+		utils.Error(c, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	currentDeviceID := c.GetHeader("X-Device-ID")
+	sessions, err := h.AuthService.ListSessions(userID, currentDeviceID)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "Failed to fetch sessions")
+		return
+	}
+
+	utils.Success(c, http.StatusOK, "sessions fetched", sessions, nil)
+}
+
+func (h *AuthHandler) RevokeSession(c *gin.Context) {
+	userID, ok := utils.GetUserIDFromContext(c)
+	if !ok {
+		utils.Error(c, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	sessionID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		utils.Error(c, http.StatusBadRequest, "invalid session id")
+		return
+	}
+
+	userAgent := c.GetHeader("User-Agent")
+	ipAddress := c.ClientIP()
+
+	if err := h.AuthService.RevokeSession(userID, uint(sessionID), userAgent, ipAddress); err != nil {
+		if err.Error() == "session not found" {
+			utils.Error(c, http.StatusNotFound, err.Error())
+			return
+		}
+		utils.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	utils.Success(c, http.StatusOK, "session revoked", nil, nil)
 }
 
 func (h *AuthHandler) Profile(c *gin.Context) {
@@ -134,11 +222,7 @@ func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 }
 
 func (h *AuthHandler) ResendVerification(c *gin.Context) {
-	type ResendInput struct {
-		Email string `json:"email" binding:"required,email"`
-	}
-
-	var input ResendInput
+	var input ResendVerificationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		utils.ValidationError(c, utils.FormatValidationError(err))
 		return
@@ -154,10 +238,7 @@ func (h *AuthHandler) ResendVerification(c *gin.Context) {
 }
 
 func (h *AuthHandler) ForgotPassword(c *gin.Context) {
-	var body struct {
-		Email string `json:"email"`
-	}
-
+	var body ForgotPasswordRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
 		utils.ValidationError(c, utils.FormatValidationError(err))
 		return
@@ -173,11 +254,7 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 }
 
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
-	var body struct {
-		Token       string `json:"token"`
-		NewPassword string `json:"new_password"`
-	}
-
+	var body ResetPasswordRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
 		utils.ValidationError(c, utils.FormatValidationError(err))
 		return

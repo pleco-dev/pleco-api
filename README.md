@@ -54,6 +54,7 @@ This project provides:
 - admin user management
 - audit trail for important auth and user actions
 - permission-based authorization for admin actions
+- basic auth endpoint rate limiting and security headers
 - database migration and seeding
 - local Docker workflow
 - generic PostgreSQL-based deployment support
@@ -380,6 +381,38 @@ curl -X POST "$BASE_URL/auth/logout" \
   -H "X-Device-ID: web"
 ```
 
+### Sessions
+
+List active sessions:
+
+```bash
+curl -X GET "$BASE_URL/auth/sessions" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "X-Device-ID: web"
+```
+
+Revoke one session:
+
+```bash
+curl -X DELETE "$BASE_URL/auth/sessions/1" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+Revoke every session:
+
+```bash
+curl -X POST "$BASE_URL/auth/logout-all" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+Revoke every other session except the current device:
+
+```bash
+curl -X POST "$BASE_URL/auth/logout-others" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "X-Device-ID: web"
+```
+
 ### Forgot Password
 
 ```bash
@@ -679,9 +712,13 @@ make db-setup
 - `POST /auth/reset-password`
 - `POST /auth/social-login`
 - `GET /auth/profile`
+- `GET /auth/sessions`
 - `PATCH /auth/profile`
 - `PATCH /auth/change-password`
 - `POST /auth/logout`
+- `POST /auth/logout-all`
+- `POST /auth/logout-others`
+- `DELETE /auth/sessions/:id`
 
 ### Admin
 
@@ -710,6 +747,8 @@ make db-setup
 - Use secret managers or platform-managed env vars for production deployments.
 - Rotate any third-party credentials that were ever exposed locally or in git history.
 - Use separate credentials for local, staging, and production environments.
+- Sensitive auth endpoints include basic in-memory rate limiting to reduce brute-force and spam attempts.
+- The app sets lightweight security headers such as `X-Content-Type-Options` and `X-Frame-Options`.
 
 ## Roadmap Ideas
 

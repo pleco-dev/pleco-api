@@ -3,6 +3,7 @@ package appsetup
 import (
 	"go-api-starterkit/config"
 	"go-api-starterkit/httpx"
+	"go-api-starterkit/middleware"
 	"go-api-starterkit/modules/audit"
 	"go-api-starterkit/modules/auth"
 	"go-api-starterkit/modules/permission"
@@ -31,6 +32,7 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtSe
 
 func BuildRouter(db *gorm.DB, cfg config.AppConfig, jwtService *services.JWTService) *gin.Engine {
 	router := gin.Default()
+	router.Use(middleware.SecurityHeaders())
 	RegisterRoutes(router, db, cfg, jwtService)
 	return router
 }

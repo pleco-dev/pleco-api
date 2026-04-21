@@ -82,6 +82,62 @@ func (_m *AuthService) Logout(userID uint, deviceID string) error {
 	return ret.Error(0)
 }
 
+func (_m *AuthService) LogoutAll(userID uint, userAgent string, ipAddress string) error {
+	ret := _m.Called(userID, userAgent, ipAddress)
+	if len(ret) == 0 {
+		panic("no return value specified for LogoutAll")
+	}
+	if rf, ok := ret.Get(0).(func(uint, string, string) error); ok {
+		return rf(userID, userAgent, ipAddress)
+	}
+	return ret.Error(0)
+}
+
+func (_m *AuthService) LogoutOtherSessions(userID uint, currentDeviceID string, userAgent string, ipAddress string) error {
+	ret := _m.Called(userID, currentDeviceID, userAgent, ipAddress)
+	if len(ret) == 0 {
+		panic("no return value specified for LogoutOtherSessions")
+	}
+	if rf, ok := ret.Get(0).(func(uint, string, string, string) error); ok {
+		return rf(userID, currentDeviceID, userAgent, ipAddress)
+	}
+	return ret.Error(0)
+}
+
+func (_m *AuthService) ListSessions(userID uint, currentDeviceID string) ([]auth.Session, error) {
+	ret := _m.Called(userID, currentDeviceID)
+	if len(ret) == 0 {
+		panic("no return value specified for ListSessions")
+	}
+	var r0 []auth.Session
+	if rf, ok := ret.Get(0).(func(uint, string) ([]auth.Session, error)); ok {
+		return rf(userID, currentDeviceID)
+	}
+	if rf, ok := ret.Get(0).(func(uint, string) []auth.Session); ok {
+		r0 = rf(userID, currentDeviceID)
+	} else if ret.Get(0) != nil {
+		r0 = ret.Get(0).([]auth.Session)
+	}
+	var r1 error
+	if rf, ok := ret.Get(1).(func(uint, string) error); ok {
+		r1 = rf(userID, currentDeviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+func (_m *AuthService) RevokeSession(userID uint, sessionID uint, userAgent string, ipAddress string) error {
+	ret := _m.Called(userID, sessionID, userAgent, ipAddress)
+	if len(ret) == 0 {
+		panic("no return value specified for RevokeSession")
+	}
+	if rf, ok := ret.Get(0).(func(uint, uint, string, string) error); ok {
+		return rf(userID, sessionID, userAgent, ipAddress)
+	}
+	return ret.Error(0)
+}
+
 func (_m *AuthService) RefreshToken(oldRefreshToken string) (*auth.AuthTokens, error) {
 	ret := _m.Called(oldRefreshToken)
 	if len(ret) == 0 {

@@ -30,7 +30,8 @@ func init() {
 				return
 			}
 
-			c.Data(http.StatusOK, "application/yaml; charset=utf-8", spec)
+			c.Header("Content-Disposition", "inline; filename=openapi.yaml")
+			c.Data(http.StatusOK, "text/plain; charset=utf-8", spec)
 		})
 	}
 }

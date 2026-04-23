@@ -667,6 +667,133 @@ paths:
               schema:
                 $ref: '#/components/schemas/EnvelopeError'
 
+  /auth/admin/audit-logs/investigate:
+    post:
+      tags: [Audit]
+      summary: Investigate filtered audit logs with AI
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuditInvestigationRequest'
+      responses:
+        '200':
+          description: Audit investigation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAuditInvestigation'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '503':
+          description: AI investigator is not enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /auth/admin/audit-logs/investigations:
+    get:
+      tags: [Audit]
+      summary: List saved audit investigations
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: resource
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: created_by_user_id
+          schema:
+            type: integer
+        - in: query
+          name: ai_provider
+          schema:
+            type: string
+        - in: query
+          name: ai_model
+          schema:
+            type: string
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: created_from
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: created_to
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Saved audit investigations fetched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAuditInvestigationHistoryList'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
+  /auth/admin/audit-logs/investigations/{id}:
+    get:
+      tags: [Audit]
+      summary: Get saved audit investigation detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Saved audit investigation fetched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAuditInvestigationHistory'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -820,6 +947,27 @@ components:
           type: array
           items:
             type: string
+    AuditInvestigationRequest:
+      type: object
+      properties:
+        action:
+          type: string
+        resource:
+          type: string
+        status:
+          type: string
+        actor_user_id:
+          type: integer
+        search:
+          type: string
+        date_from:
+          type: string
+          format: date-time
+        date_to:
+          type: string
+          format: date-time
+        limit:
+          type: integer
     RolePermissions:
       type: object
       properties:
@@ -870,6 +1018,75 @@ components:
         created_at:
           type: string
           format: date-time
+    AuditInvestigation:
+      type: object
+      properties:
+        summary:
+          type: string
+        timeline:
+          type: array
+          items:
+            type: string
+        suspicious_signals:
+          type: array
+          items:
+            type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+    AuditInvestigationHistory:
+      type: object
+      properties:
+        id:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        created_by_user_id:
+          type: integer
+          nullable: true
+        action:
+          type: string
+        resource:
+          type: string
+        status:
+          type: string
+        actor_user_id:
+          type: integer
+          nullable: true
+        search:
+          type: string
+        date_from:
+          type: string
+          format: date-time
+          nullable: true
+        date_to:
+          type: string
+          format: date-time
+          nullable: true
+        limit:
+          type: integer
+        log_count:
+          type: integer
+        ai_provider:
+          type: string
+        ai_model:
+          type: string
+        summary:
+          type: string
+        timeline:
+          type: array
+          items:
+            type: string
+        suspicious_signals:
+          type: array
+          items:
+            type: string
+        recommendations:
+          type: array
+          items:
+            type: string
     FieldError:
       type: object
       properties:
@@ -1067,3 +1284,80 @@ components:
               type: string
               format: date-time
               nullable: true
+    EnvelopeAuditInvestigation:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/AuditInvestigation'
+        meta:
+          type: object
+          properties:
+            log_count:
+              type: integer
+            limit:
+              type: integer
+            resource:
+              type: string
+            action:
+              type: string
+            status:
+              type: string
+            investigation_id:
+              type: integer
+    EnvelopeAuditInvestigationHistoryList:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditInvestigationHistory'
+        meta:
+          type: object
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            resource:
+              type: string
+            status:
+              type: string
+            created_by_user_id:
+              type: integer
+              nullable: true
+            ai_provider:
+              type: string
+            ai_model:
+              type: string
+            search:
+              type: string
+            created_from:
+              type: string
+              format: date-time
+              nullable: true
+            created_to:
+              type: string
+              format: date-time
+              nullable: true
+    EnvelopeAuditInvestigationHistory:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/AuditInvestigationHistory'

@@ -1,21 +1,28 @@
 package audit
 
-import "gorm.io/gorm"
+import (
+	"go-api-starterkit/internal/ai"
+
+	"gorm.io/gorm"
+)
 
 type Module struct {
 	Repository Repository
 	Service    *Service
+	AIService  *InvestigatorService
 	Handler    *Handler
 }
 
-func BuildModule(db *gorm.DB) *Module {
+func BuildModule(db *gorm.DB, aiService *ai.Service) *Module {
 	repository := NewRepository(db)
 	service := NewService(repository)
-	handler := NewHandler(service)
+	investigatorService := NewInvestigatorService(repository, aiService, service)
+	handler := NewHandler(service, investigatorService)
 
 	return &Module{
 		Repository: repository,
 		Service:    service,
+		AIService:  investigatorService,
 		Handler:    handler,
 	}
 }

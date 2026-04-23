@@ -20,6 +20,15 @@ type SocialConfig struct {
 	AppleClientID     string
 }
 
+type AIConfig struct {
+	Enabled        bool
+	Provider       string
+	Model          string
+	BaseURL        string
+	APIKey         string
+	TimeoutSeconds int
+}
+
 type AppConfig struct {
 	Port              string
 	DatabaseURL       string
@@ -31,6 +40,7 @@ type AppConfig struct {
 	AutoRunSeeds      bool
 	Email             EmailConfig
 	Social            SocialConfig
+	AI                AIConfig
 }
 
 func LoadAppConfig() AppConfig {
@@ -54,6 +64,14 @@ func LoadAppConfig() AppConfig {
 			FacebookAppID:     GetEnv("FACEBOOK_APP_ID", ""),
 			FacebookAppSecret: GetEnv("FACEBOOK_APP_SECRET", ""),
 			AppleClientID:     GetEnv("APPLE_CLIENT_ID", ""),
+		},
+		AI: AIConfig{
+			Enabled:        envBool("AI_ENABLED"),
+			Provider:       strings.ToLower(GetEnv("AI_PROVIDER", "mock")),
+			Model:          GetEnv("AI_MODEL", "qwen2.5:3b"),
+			BaseURL:        GetEnv("AI_BASE_URL", "http://localhost:11434"),
+			APIKey:         GetEnv("AI_API_KEY", ""),
+			TimeoutSeconds: envInt("AI_TIMEOUT_SECONDS", 30),
 		},
 	}
 }
@@ -90,6 +108,25 @@ func (c AppConfig) Validate() error {
 		problems = append(problems, "ADMIN_EMAIL and ADMIN_PASSWORD are required when AUTO_RUN_SEEDS is enabled")
 	}
 
+	if c.AI.Enabled {
+		if c.AI.TimeoutSeconds < 1 {
+			problems = append(problems, "AI_TIMEOUT_SECONDS must be greater than 0 when AI is enabled")
+		}
+
+		switch c.AI.Provider {
+		case "mock":
+		case "ollama":
+			if c.AI.BaseURL == "" {
+				problems = append(problems, "AI_BASE_URL is required when AI_PROVIDER is ollama")
+			}
+			if c.AI.Model == "" {
+				problems = append(problems, "AI_MODEL is required when AI_PROVIDER is ollama")
+			}
+		default:
+			problems = append(problems, "AI_PROVIDER must be one of: mock, ollama")
+		}
+	}
+
 	if len(problems) > 0 {
 		return fmt.Errorf("invalid app config:\n- %s", strings.Join(problems, "\n- "))
 	}
@@ -120,6 +157,19 @@ func envList(key string, fallback []string) []string {
 		return append([]string(nil), fallback...)
 	}
 	return items
+}
+
+func envInt(key string, fallback int) int {
+	value := strings.TrimSpace(GetEnv(key, ""))
+	if value == "" {
+		return fallback
+	}
+
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }
 
 func firstNonEmptyEnv(keys ...string) string {

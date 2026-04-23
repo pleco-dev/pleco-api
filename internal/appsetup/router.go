@@ -1,6 +1,7 @@
 package appsetup
 
 import (
+	"go-api-starterkit/internal/ai"
 	"go-api-starterkit/internal/config"
 	"go-api-starterkit/internal/httpx"
 	"go-api-starterkit/internal/middleware"
@@ -16,11 +17,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtService *services.JWTService) {
+func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtService *services.JWTService) error {
 	api := router.Group("/")
+	aiService, err := ai.NewService(cfg.AI)
+	if err != nil {
+		return err
+	}
 	permissionModule := permission.BuildModule(db)
 	roleModule := role.BuildModule(db)
-	auditModule := audit.BuildModule(db)
+	auditModule := audit.BuildModule(db, aiService)
 	userModule := user.BuildModule(db, auditModule.Service)
 	authModule := auth.BuildModule(db, cfg, userModule.Service, jwtService, auditModule.Service)
 
@@ -31,6 +36,7 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtSe
 	router.GET("/health", func(c *gin.Context) {
 		httpx.Success(c, 200, "Health check ok", gin.H{"status": "ok"}, nil)
 	})
+	return nil
 }
 
 func BuildRouter(db *gorm.DB, cfg config.AppConfig, jwtService *services.JWTService) (*gin.Engine, error) {
@@ -42,6 +48,8 @@ func BuildRouter(db *gorm.DB, cfg config.AppConfig, jwtService *services.JWTServ
 	router.Use(middleware.StructuredLogger())
 	router.Use(middleware.RecoveryLogger())
 	router.Use(middleware.SecurityHeaders())
-	RegisterRoutes(router, db, cfg, jwtService)
+	if err := RegisterRoutes(router, db, cfg, jwtService); err != nil {
+		return nil, err
+	}
 	return router, nil
 }

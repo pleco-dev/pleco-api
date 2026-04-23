@@ -24,6 +24,7 @@ func RegisterDocsFromDisk(router *gin.Engine) {
 			return
 		}
 
-		c.Data(200, "application/yaml; charset=utf-8", spec)
+		c.Header("Content-Disposition", "inline; filename=openapi.yaml")
+		c.Data(200, "text/plain; charset=utf-8", spec)
 	})
 }

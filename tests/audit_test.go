@@ -18,8 +18,11 @@ import (
 )
 
 type stubAuditRepo struct {
-	findAllWithFilter func(filter audit.Filter) ([]audit.AuditLog, int64, error)
-	findForExport     func(filter audit.Filter) ([]audit.AuditLog, error)
+	findAllWithFilter     func(filter audit.Filter) ([]audit.AuditLog, int64, error)
+	findForExport         func(filter audit.Filter) ([]audit.AuditLog, error)
+	createInvestigation   func(record *audit.AuditInvestigation) error
+	findInvestigations    func(filter audit.InvestigationFilter) ([]audit.AuditInvestigation, int64, error)
+	findInvestigationByID func(id uint) (*audit.AuditInvestigation, error)
 }
 
 func (s *stubAuditRepo) Create(log *audit.AuditLog) error {
@@ -38,6 +41,28 @@ func (s *stubAuditRepo) FindForExport(filter audit.Filter) ([]audit.AuditLog, er
 		return s.findForExport(filter)
 	}
 	return nil, nil
+}
+
+func (s *stubAuditRepo) CreateInvestigation(record *audit.AuditInvestigation) error {
+	if s.createInvestigation != nil {
+		return s.createInvestigation(record)
+	}
+	record.ID = 1
+	return nil
+}
+
+func (s *stubAuditRepo) FindInvestigations(filter audit.InvestigationFilter) ([]audit.AuditInvestigation, int64, error) {
+	if s.findInvestigations != nil {
+		return s.findInvestigations(filter)
+	}
+	return nil, 0, nil
+}
+
+func (s *stubAuditRepo) FindInvestigationByID(id uint) (*audit.AuditInvestigation, error) {
+	if s.findInvestigationByID != nil {
+		return s.findInvestigationByID(id)
+	}
+	return nil, gorm.ErrRecordNotFound
 }
 
 func TestAuditHandler_GetLogs_WithExtendedFilter(t *testing.T) {
@@ -222,6 +247,14 @@ func TestAuditHandler_InvestigateLogs_Success(t *testing.T) {
 				},
 			}, 1, nil
 		},
+		createInvestigation: func(record *audit.AuditInvestigation) error {
+			record.ID = 77
+			assert.Equal(t, uint(9), *record.CreatedByUserID)
+			assert.Equal(t, "mock", record.AIProvider)
+			assert.Equal(t, "mock-model", record.AIModel)
+			assert.Equal(t, 1, record.LogCount)
+			return nil
+		},
 	}
 
 	handler := audit.NewHandler(
@@ -238,6 +271,7 @@ func TestAuditHandler_InvestigateLogs_Success(t *testing.T) {
 		strings.NewReader(`{"resource":"auth","status":"failed","limit":25}`),
 	)
 	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set("user_id", uint(9))
 
 	handler.InvestigateLogs(c)
 
@@ -247,6 +281,7 @@ func TestAuditHandler_InvestigateLogs_Success(t *testing.T) {
 	assert.Equal(t, "Audit investigation completed", bodyMap["message"])
 	meta := bodyMap["meta"].(map[string]interface{})
 	assert.Equal(t, float64(1), meta["log_count"])
+	assert.Equal(t, float64(77), meta["investigation_id"])
 }
 
 func TestAuditHandler_InvestigateLogs_DisabledAI(t *testing.T) {
@@ -272,4 +307,108 @@ func TestAuditHandler_InvestigateLogs_DisabledAI(t *testing.T) {
 	bodyMap := decodeBodyMap(t, w)
 	assert.Equal(t, "error", bodyMap["status"])
 	assert.Equal(t, "ai investigator is not enabled", bodyMap["message"])
+}
+
+func TestAuditHandler_ListInvestigations_Success(t *testing.T) {
+	repo := &stubAuditRepo{
+		findInvestigations: func(filter audit.InvestigationFilter) ([]audit.AuditInvestigation, int64, error) {
+			assert.Equal(t, 2, filter.Page)
+			assert.Equal(t, 5, filter.Limit)
+			assert.Equal(t, "auth", filter.Resource)
+			assert.Equal(t, "failed", filter.Status)
+			assert.Equal(t, "ollama", filter.AIProvider)
+			assert.Equal(t, "qwen2.5:3b", filter.AIModel)
+			assert.Equal(t, "invalid credentials", filter.Search)
+			assert.NotNil(t, filter.CreatedByUserID)
+			assert.Equal(t, uint(9), *filter.CreatedByUserID)
+			assert.NotNil(t, filter.CreatedFrom)
+			assert.NotNil(t, filter.CreatedTo)
+			return []audit.AuditInvestigation{
+				{
+					Model:                 gorm.Model{ID: 11, CreatedAt: time.Date(2026, 4, 22, 4, 0, 0, 0, time.UTC)},
+					Resource:              "auth",
+					Status:                "failed",
+					Summary:               "Repeated failed login attempts detected.",
+					TimelineJSON:          `["item 1"]`,
+					SuspiciousSignalsJSON: `["signal 1"]`,
+					RecommendationsJSON:   `["recommendation 1"]`,
+				},
+			}, 1, nil
+		},
+	}
+
+	handler := audit.NewHandler(
+		audit.NewService(repo),
+		audit.NewInvestigatorService(repo, &aiModule.Service{}),
+	)
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/audit-logs/investigations?page=2&limit=5&resource=auth&status=failed&created_by_user_id=9&ai_provider=ollama&ai_model=qwen2.5:3b&search=invalid%20credentials&created_from=2026-04-20T00:00:00Z&created_to=2026-04-22T23:59:59Z", nil)
+
+	handler.ListInvestigations(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	assert.Equal(t, "success", bodyMap["status"])
+	assert.Equal(t, "Audit investigations fetched", bodyMap["message"])
+	meta := bodyMap["meta"].(map[string]interface{})
+	assert.Equal(t, float64(2), meta["page"])
+	assert.Equal(t, float64(5), meta["limit"])
+	assert.Equal(t, "auth", meta["resource"])
+}
+
+func TestAuditHandler_ListInvestigations_InvalidDateRange(t *testing.T) {
+	handler := audit.NewHandler(
+		audit.NewService(&stubAuditRepo{}),
+		audit.NewInvestigatorService(&stubAuditRepo{}, &aiModule.Service{}),
+	)
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/audit-logs/investigations?created_from=2026-04-22T00:00:00Z&created_to=2026-04-20T00:00:00Z", nil)
+
+	handler.ListInvestigations(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	assert.Equal(t, "error", bodyMap["status"])
+	assert.Equal(t, "created_from must be before or equal to created_to", bodyMap["message"])
+}
+
+func TestAuditHandler_GetInvestigationByID_Success(t *testing.T) {
+	repo := &stubAuditRepo{
+		findInvestigationByID: func(id uint) (*audit.AuditInvestigation, error) {
+			assert.Equal(t, uint(11), id)
+			return &audit.AuditInvestigation{
+				Model:                 gorm.Model{ID: 11, CreatedAt: time.Date(2026, 4, 22, 4, 0, 0, 0, time.UTC)},
+				Resource:              "auth",
+				Status:                "failed",
+				Summary:               "Repeated failed login attempts detected.",
+				TimelineJSON:          `["item 1"]`,
+				SuspiciousSignalsJSON: `["signal 1"]`,
+				RecommendationsJSON:   `["recommendation 1"]`,
+			}, nil
+		},
+	}
+
+	handler := audit.NewHandler(
+		audit.NewService(repo),
+		audit.NewInvestigatorService(repo, &aiModule.Service{}),
+	)
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = gin.Params{{Key: "id", Value: "11"}}
+	c.Request = httptest.NewRequest(http.MethodGet, "/audit-logs/investigations/11", nil)
+
+	handler.GetInvestigationByID(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	assert.Equal(t, "success", bodyMap["status"])
+	assert.Equal(t, "Audit investigation fetched", bodyMap["message"])
 }

@@ -10,15 +10,17 @@ import (
 var ErrDisabled = errors.New("ai is disabled")
 
 type Service struct {
-	enabled  bool
-	model    string
-	provider Provider
+	enabled      bool
+	model        string
+	providerName string
+	provider     Provider
 }
 
 func NewService(cfg config.AIConfig) (*Service, error) {
 	service := &Service{
-		enabled: cfg.Enabled,
-		model:   cfg.Model,
+		enabled:      cfg.Enabled,
+		model:        cfg.Model,
+		providerName: cfg.Provider,
 	}
 
 	if !cfg.Enabled {
@@ -49,4 +51,18 @@ func (s *Service) Generate(ctx context.Context, input GenerateInput) (*GenerateR
 		input.Model = s.model
 	}
 	return s.provider.Generate(ctx, input)
+}
+
+func (s *Service) ProviderName() string {
+	if s == nil {
+		return ""
+	}
+	return s.providerName
+}
+
+func (s *Service) ModelName() string {
+	if s == nil {
+		return ""
+	}
+	return s.model
 }

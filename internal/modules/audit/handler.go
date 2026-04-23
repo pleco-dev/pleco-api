@@ -8,6 +8,7 @@ import (
 	"go-api-starterkit/internal/httpx"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type Handler struct {
@@ -91,29 +92,74 @@ func (h *Handler) InvestigateLogs(c *gin.Context) {
 		return
 	}
 
+	var investigationID uint
+	if saved, err := h.AIService.SaveInvestigation(currentUserID(c), filter, result, logs); err != nil {
+		httpx.Error(c, 500, "Failed to save audit investigation")
+		return
+	} else if saved != nil {
+		investigationID = saved.ID
+	}
+
 	httpx.Success(c, 200, "Audit investigation completed", result, gin.H{
-		"log_count": len(logs),
-		"limit":     filter.Limit,
-		"resource":  filter.Resource,
-		"action":    filter.Action,
-		"status":    filter.Status,
+		"investigation_id": investigationID,
+		"log_count":        len(logs),
+		"limit":            filter.Limit,
+		"resource":         filter.Resource,
+		"action":           filter.Action,
+		"status":           filter.Status,
 	})
 }
 
-func buildFilter(c *gin.Context) (Filter, error) {
-	page := 1
-	limit := 10
+func (h *Handler) ListInvestigations(c *gin.Context) {
+	filter, err := buildInvestigationFilter(c)
+	if err != nil {
+		httpx.Error(c, 400, err.Error())
+		return
+	}
 
-	if p := c.Query("page"); p != "" {
-		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
-			page = parsed
-		}
+	items, total, err := h.AIService.ListInvestigations(filter)
+	if err != nil {
+		httpx.Error(c, 500, "Failed to fetch audit investigations")
+		return
 	}
-	if l := c.Query("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-			limit = parsed
-		}
+
+	httpx.Success(c, 200, "Audit investigations fetched", items, gin.H{
+		"page":               filter.Page,
+		"limit":              filter.Limit,
+		"total":              total,
+		"resource":           filter.Resource,
+		"status":             filter.Status,
+		"created_by_user_id": filter.CreatedByUserID,
+		"ai_provider":        filter.AIProvider,
+		"ai_model":           filter.AIModel,
+		"search":             filter.Search,
+		"created_from":       formatTime(filter.CreatedFrom),
+		"created_to":         formatTime(filter.CreatedTo),
+	})
+}
+
+func (h *Handler) GetInvestigationByID(c *gin.Context) {
+	id, err := parsePositiveUintParam(c.Param("id"), "id")
+	if err != nil {
+		httpx.Error(c, 400, err.Error())
+		return
 	}
+
+	item, err := h.AIService.GetInvestigationByID(id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			httpx.Error(c, 404, "audit investigation not found")
+			return
+		}
+		httpx.Error(c, 500, "Failed to fetch audit investigation")
+		return
+	}
+
+	httpx.Success(c, 200, "Audit investigation fetched", item, nil)
+}
+
+func buildFilter(c *gin.Context) (Filter, error) {
+	page, limit := paginationFromQuery(c)
 
 	filter := Filter{
 		Page:     page,
@@ -155,6 +201,77 @@ func buildFilter(c *gin.Context) (Filter, error) {
 	}
 
 	return filter, nil
+}
+
+func paginationFromQuery(c *gin.Context) (int, int) {
+	page := 1
+	limit := 10
+
+	if p := c.Query("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	return page, limit
+}
+
+func buildInvestigationFilter(c *gin.Context) (InvestigationFilter, error) {
+	page, limit := paginationFromQuery(c)
+
+	filter := InvestigationFilter{
+		Page:       page,
+		Limit:      limit,
+		Resource:   c.Query("resource"),
+		Status:     c.Query("status"),
+		AIProvider: c.Query("ai_provider"),
+		AIModel:    c.Query("ai_model"),
+		Search:     c.Query("search"),
+	}
+
+	if createdBy := c.Query("created_by_user_id"); createdBy != "" {
+		value, err := parsePositiveUintParam(createdBy, "created_by_user_id")
+		if err != nil {
+			return InvestigationFilter{}, err
+		}
+		filter.CreatedByUserID = &value
+	}
+
+	var err error
+	if createdFrom := c.Query("created_from"); createdFrom != "" {
+		parsed := time.Time{}
+		parsed, err = time.Parse(time.RFC3339, createdFrom)
+		if err != nil {
+			return InvestigationFilter{}, fmt.Errorf("created_from must use RFC3339 format")
+		}
+		filter.CreatedFrom = &parsed
+	}
+	if createdTo := c.Query("created_to"); createdTo != "" {
+		parsed := time.Time{}
+		parsed, err = time.Parse(time.RFC3339, createdTo)
+		if err != nil {
+			return InvestigationFilter{}, fmt.Errorf("created_to must use RFC3339 format")
+		}
+		filter.CreatedTo = &parsed
+	}
+	if filter.CreatedFrom != nil && filter.CreatedTo != nil && filter.CreatedFrom.After(*filter.CreatedTo) {
+		return InvestigationFilter{}, fmt.Errorf("created_from must be before or equal to created_to")
+	}
+
+	return filter, nil
+}
+
+func parsePositiveUintParam(raw string, field string) (uint, error) {
+	value, err := strconv.ParseUint(raw, 10, 64)
+	if err != nil || value == 0 {
+		return 0, fmt.Errorf("%s must be a positive integer", field)
+	}
+	return uint(value), nil
 }
 
 func buildFilterFromRequest(input InvestigateRequest) (Filter, error) {
@@ -202,4 +319,16 @@ func formatTime(value *time.Time) any {
 		return nil
 	}
 	return value.UTC().Format(time.RFC3339)
+}
+
+func currentUserID(c *gin.Context) *uint {
+	raw, ok := c.Get("user_id")
+	if !ok {
+		return nil
+	}
+	value, ok := raw.(uint)
+	if !ok {
+		return nil
+	}
+	return &value
 }

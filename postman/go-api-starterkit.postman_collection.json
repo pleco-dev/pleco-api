@@ -6,21 +6,66 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "base_url", "value": "http://localhost:8080" },
-    { "key": "access_token", "value": "" },
-    { "key": "refresh_token", "value": "" },
-    { "key": "device_id", "value": "web" },
-    { "key": "user_email", "value": "tester@example.com" },
-    { "key": "user_password", "value": "secret123" },
-    { "key": "managed_user_id", "value": "1" },
-    { "key": "managed_user_email", "value": "managed@example.com" },
-    { "key": "managed_user_password", "value": "secret123" },
-    { "key": "verify_token", "value": "" },
-    { "key": "reset_token", "value": "" },
-    { "key": "session_id", "value": "" },
-    { "key": "google_id_token", "value": "" },
-    { "key": "facebook_access_token", "value": "" },
-    { "key": "apple_id_token", "value": "" }
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "refresh_token",
+      "value": ""
+    },
+    {
+      "key": "device_id",
+      "value": "web"
+    },
+    {
+      "key": "user_email",
+      "value": "tester@example.com"
+    },
+    {
+      "key": "user_password",
+      "value": "secret123"
+    },
+    {
+      "key": "managed_user_id",
+      "value": "1"
+    },
+    {
+      "key": "managed_user_email",
+      "value": "managed@example.com"
+    },
+    {
+      "key": "managed_user_password",
+      "value": "secret123"
+    },
+    {
+      "key": "verify_token",
+      "value": ""
+    },
+    {
+      "key": "reset_token",
+      "value": ""
+    },
+    {
+      "key": "session_id",
+      "value": ""
+    },
+    {
+      "key": "google_id_token",
+      "value": ""
+    },
+    {
+      "key": "facebook_access_token",
+      "value": ""
+    },
+    {
+      "key": "apple_id_token",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -70,7 +115,10 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -107,8 +155,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-Device-ID", "value": "{{device_id}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -139,7 +193,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
             ],
             "url": "{{base_url}}/auth/profile"
           }
@@ -162,8 +219,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -190,8 +253,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -228,7 +297,10 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -255,8 +327,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "X-Device-ID", "value": "{{device_id}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              }
             ],
             "url": "{{base_url}}/auth/logout"
           }
@@ -288,8 +366,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "X-Device-ID", "value": "{{device_id}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              }
             ],
             "url": "{{base_url}}/auth/sessions"
           }
@@ -312,7 +396,10 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
             ],
             "url": "{{base_url}}/auth/sessions/{{session_id}}"
           }
@@ -335,8 +422,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "X-Device-ID", "value": "{{device_id}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              }
             ],
             "url": "{{base_url}}/auth/logout-others"
           }
@@ -359,7 +452,10 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
             ],
             "url": "{{base_url}}/auth/logout-all"
           }
@@ -403,7 +499,10 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -430,7 +529,10 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -457,7 +559,10 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -484,7 +589,10 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -516,7 +624,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
             ],
             "url": "{{base_url}}/auth/admin/users?page=1&limit=10"
           }
@@ -539,7 +650,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
             ],
             "url": "{{base_url}}/auth/admin/users/{{managed_user_id}}"
           }
@@ -562,8 +676,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -590,8 +710,14 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -618,7 +744,10 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
             ],
             "url": "{{base_url}}/auth/admin/users/{{managed_user_id}}"
           }
@@ -641,7 +770,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
             ],
             "url": "{{base_url}}/auth/admin/audit-logs?page=1&limit=10&resource=user&status=success&search=admin"
           }
@@ -664,7 +796,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
             ],
             "url": "{{base_url}}/auth/admin/audit-logs/export?resource=user&status=success"
           }
@@ -675,26 +810,94 @@
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
                   "pm.test('investigate audit logs returns known status', function () {",
                   "  pm.expect([200, 403, 503]).to.include(pm.response.code);",
-                  "});"
-                ],
-                "type": "text/javascript"
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  const investigationId = json.meta && json.meta.investigation_id;",
+                  "  if (investigationId) pm.environment.set('investigation_id', investigationId);",
+                  "}"
+                ]
               }
             }
           ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"resource\": \"auth\",\n  \"status\": \"failed\",\n  \"limit\": 50\n}"
             },
             "url": "{{base_url}}/auth/admin/audit-logs/investigate"
+          }
+        },
+        {
+          "name": "List Audit Investigations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('list audit investigations returns known status', function () {",
+                  "  pm.expect([200, 403]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  const first = json.data && json.data[0];",
+                  "  if (first && first.id) pm.environment.set('investigation_id', first.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/audit-logs/investigations?page=1&limit=10&resource=auth&status=failed&created_by_user_id=1&ai_provider={{ai_provider}}&ai_model={{ai_model}}&search=invalid%20credentials&created_from=2026-04-20T00:00:00Z&created_to=2026-04-22T23:59:59Z"
+          }
+        },
+        {
+          "name": "Get Audit Investigation Detail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('get audit investigation detail returns known status', function () {",
+                  "  pm.expect([200, 400, 403, 404]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/audit-logs/investigations/{{investigation_id}}"
           }
         },
         {
@@ -715,7 +918,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
             ],
             "url": "{{base_url}}/auth/admin/roles"
           }
@@ -738,7 +944,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
             ],
             "url": "{{base_url}}/auth/admin/permissions"
           }
@@ -761,7 +970,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
             ],
             "url": "{{base_url}}/auth/admin/roles/2/permissions"
           }
@@ -784,8 +996,14 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",

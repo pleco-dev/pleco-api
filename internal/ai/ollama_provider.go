@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -28,9 +31,14 @@ type ollamaResponse struct {
 	Error    string `json:"error"`
 }
 
+var (
+	ErrOllamaUnavailable  = errors.New("ollama is unavailable")
+	ErrOllamaModelMissing = errors.New("ollama model is not available")
+)
+
 func NewOllamaProvider(baseURL string) *OllamaProvider {
 	return &OllamaProvider{
-		baseURL: strings.TrimRight(baseURL, "/"),
+		baseURL: normalizeBaseURL(baseURL),
 		client:  &http.Client{Timeout: 30 * time.Second},
 	}
 }
@@ -55,16 +63,23 @@ func (p *OllamaProvider) Generate(ctx context.Context, input GenerateInput) (*Ge
 
 	resp, err := p.client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", ErrOllamaUnavailable, err)
 	}
 	defer resp.Body.Close()
 
 	var parsed ollamaResponse
-	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return nil, err
+	}
+	if err := json.Unmarshal(bodyBytes, &parsed); err != nil {
+		return nil, fmt.Errorf("failed to decode ollama response: %s", strings.TrimSpace(string(bodyBytes)))
 	}
 
 	if resp.StatusCode >= 400 {
+		if resp.StatusCode == http.StatusNotFound || strings.Contains(strings.ToLower(parsed.Error), "model") {
+			return nil, fmt.Errorf("%w: %s", ErrOllamaModelMissing, fallbackOllamaError(parsed.Error, resp.StatusCode))
+		}
 		if parsed.Error != "" {
 			return nil, fmt.Errorf("ollama error: %s", parsed.Error)
 		}
@@ -75,4 +90,42 @@ func (p *OllamaProvider) Generate(ctx context.Context, input GenerateInput) (*Ge
 	}
 
 	return &GenerateResult{Text: parsed.Response}, nil
+}
+
+func (p *OllamaProvider) HealthCheck(ctx context.Context) error {
+	endpoint := p.baseURL + "/api/tags"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrOllamaUnavailable, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("ollama health check returned status %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func fallbackOllamaError(message string, status int) string {
+	if strings.TrimSpace(message) != "" {
+		return message
+	}
+	return fmt.Sprintf("status %d", status)
+}
+
+func normalizeBaseURL(raw string) string {
+	if strings.TrimSpace(raw) == "" {
+		return ""
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return strings.TrimRight(raw, "/")
+	}
+	return strings.TrimRight(parsed.String(), "/")
 }

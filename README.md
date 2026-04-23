@@ -159,6 +159,37 @@ AUTO_RUN_SEEDS=false
 
 unless you intentionally want startup-time initialization.
 
+### AI Audit Investigator
+
+For quick local testing without a real model:
+
+```env
+AI_ENABLED=true
+AI_PROVIDER=mock
+AI_MODEL=mock-model
+```
+
+For real local AI with Ollama:
+
+```env
+AI_ENABLED=true
+AI_PROVIDER=ollama
+AI_MODEL=qwen2.5:3b
+AI_BASE_URL=http://localhost:11434
+```
+
+Then make sure Ollama is running and the model is available:
+
+```bash
+ollama serve
+ollama pull qwen2.5:3b
+```
+
+Common failures:
+- `ai investigator is not enabled`: `AI_ENABLED` is still false or the app was not restarted.
+- `ollama is unavailable`: Ollama is not running or `AI_BASE_URL` is wrong.
+- `ollama model is not available`: run `ollama pull <model>` first.
+
 ## Local Development
 
 ### 1. Configure environment
@@ -570,6 +601,20 @@ curl -X POST "$BASE_URL/auth/admin/audit-logs/investigate" \
   }'
 ```
 
+### Admin: List Saved Audit Investigations
+
+```bash
+curl -X GET "$BASE_URL/auth/admin/audit-logs/investigations?page=1&limit=10&resource=auth&status=failed&created_by_user_id=1&ai_provider=ollama&search=invalid%20credentials&created_from=2026-04-20T00:00:00Z&created_to=2026-04-22T23:59:59Z" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### Admin: Get Audit Investigation Detail
+
+```bash
+curl -X GET "$BASE_URL/auth/admin/audit-logs/investigations/1" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
 ### Admin: Get Roles
 
 ```bash
@@ -813,6 +858,8 @@ make db-setup
 - `GET /auth/admin/audit-logs`
 - `GET /auth/admin/audit-logs/export`
 - `POST /auth/admin/audit-logs/investigate`
+- `GET /auth/admin/audit-logs/investigations`
+- `GET /auth/admin/audit-logs/investigations/:id`
 - `GET /auth/admin/roles`
 - `GET /auth/admin/permissions`
 - `GET /auth/admin/roles/:id/permissions`

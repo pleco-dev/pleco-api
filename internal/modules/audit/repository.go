@@ -19,10 +19,26 @@ type Filter struct {
 	DateTo      *time.Time
 }
 
+type InvestigationFilter struct {
+	Page            int
+	Limit           int
+	Resource        string
+	Status          string
+	CreatedByUserID *uint
+	AIProvider      string
+	AIModel         string
+	Search          string
+	CreatedFrom     *time.Time
+	CreatedTo       *time.Time
+}
+
 type Repository interface {
 	Create(log *AuditLog) error
 	FindAllWithFilter(filter Filter) ([]AuditLog, int64, error)
 	FindForExport(filter Filter) ([]AuditLog, error)
+	CreateInvestigation(record *AuditInvestigation) error
+	FindInvestigations(filter InvestigationFilter) ([]AuditInvestigation, int64, error)
+	FindInvestigationByID(id uint) (*AuditInvestigation, error)
 }
 
 type gormRepository struct {
@@ -35,6 +51,10 @@ func NewRepository(db *gorm.DB) Repository {
 
 func (r *gormRepository) Create(log *AuditLog) error {
 	return r.db.Create(log).Error
+}
+
+func (r *gormRepository) CreateInvestigation(record *AuditInvestigation) error {
+	return r.db.Create(record).Error
 }
 
 func (r *gormRepository) FindAllWithFilter(filter Filter) ([]AuditLog, int64, error) {
@@ -69,6 +89,37 @@ func (r *gormRepository) FindForExport(filter Filter) ([]AuditLog, error) {
 	return logs, err
 }
 
+func (r *gormRepository) FindInvestigations(filter InvestigationFilter) ([]AuditInvestigation, int64, error) {
+	var (
+		items []AuditInvestigation
+		total int64
+	)
+
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.Limit < 1 {
+		filter.Limit = 10
+	}
+
+	query := r.applyInvestigationFilter(r.db.Model(&AuditInvestigation{}), filter)
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (filter.Page - 1) * filter.Limit
+	err := query.Order("created_at DESC").Limit(filter.Limit).Offset(offset).Find(&items).Error
+	return items, total, err
+}
+
+func (r *gormRepository) FindInvestigationByID(id uint) (*AuditInvestigation, error) {
+	var item AuditInvestigation
+	if err := r.db.First(&item, id).Error; err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
 func (r *gormRepository) applyFilter(query *gorm.DB, filter Filter) *gorm.DB {
 	if filter.Action != "" {
 		query = query.Where("action = ?", filter.Action)
@@ -92,6 +143,38 @@ func (r *gormRepository) applyFilter(query *gorm.DB, filter Filter) *gorm.DB {
 		like := "%" + search + "%"
 		query = query.Where(
 			"(action ILIKE ? OR resource ILIKE ? OR status ILIKE ? OR description ILIKE ? OR ip_address ILIKE ? OR user_agent ILIKE ?)",
+			like, like, like, like, like, like,
+		)
+	}
+	return query
+}
+
+func (r *gormRepository) applyInvestigationFilter(query *gorm.DB, filter InvestigationFilter) *gorm.DB {
+	if filter.Resource != "" {
+		query = query.Where("resource = ?", filter.Resource)
+	}
+	if filter.Status != "" {
+		query = query.Where("status = ?", filter.Status)
+	}
+	if filter.CreatedByUserID != nil {
+		query = query.Where("created_by_user_id = ?", *filter.CreatedByUserID)
+	}
+	if filter.AIProvider != "" {
+		query = query.Where("ai_provider = ?", filter.AIProvider)
+	}
+	if filter.AIModel != "" {
+		query = query.Where("ai_model = ?", filter.AIModel)
+	}
+	if filter.CreatedFrom != nil {
+		query = query.Where("created_at >= ?", *filter.CreatedFrom)
+	}
+	if filter.CreatedTo != nil {
+		query = query.Where("created_at <= ?", *filter.CreatedTo)
+	}
+	if search := strings.TrimSpace(filter.Search); search != "" {
+		like := "%" + search + "%"
+		query = query.Where(
+			"(resource ILIKE ? OR status ILIKE ? OR summary ILIKE ? OR ai_provider ILIKE ? OR ai_model ILIKE ? OR search ILIKE ?)",
 			like, like, like, like, like, like,
 		)
 	}

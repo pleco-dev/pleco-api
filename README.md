@@ -10,7 +10,7 @@
 
 > **Skip the boilerplate.** A modular, production-oriented Go REST API foundation with JWT authentication, social login, RBAC, audit trail, and an AI-powered log investigator — ready to clone, extend, and ship.
 
-🔗 **Live Demo:** [go-api-starterkit.onrender.com](https://go-api-starterkit.onrender.com) &nbsp;|&nbsp; 📖 **API Docs:** [go-api-starterkit.onrender.com/docs](https://go-api-starterkit.onrender.com/docs)
+🔗 **Dashboard Demo:** [gokitdash.vercel.app](https://gokitdash.vercel.app/) &nbsp;|&nbsp; 📖 **API Docs:** [go-api-starterkit.onrender.com/docs](https://go-api-starterkit.onrender.com/docs)
 
 ---
 

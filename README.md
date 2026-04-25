@@ -8,7 +8,9 @@
 [![AI Powered](https://img.shields.io/badge/AI-Audit%20Investigator-ff6b35?logo=ollama)](https://ollama.com)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-> **Skip the boilerplate.** A modular, production-oriented Go REST API foundation with JWT authentication, social login, RBAC, audit trail, and an AI-powered log investigator — ready to clone, extend, and ship.
+> **Skip the boilerplate.** A modular, production-oriented Go REST API foundation with JWT authentication, social login, RBAC, per-device session management, audit trail, and an AI-powered log investigator — ready to clone, extend, and ship.
+
+Intended for Go backend developers who want a solid, security-conscious auth foundation to build on — without reinventing JWT flows, email verification, social login, or audit logging from scratch.
 
 🔗 **Dashboard Demo:** [gokitdash.vercel.app](https://gokitdash.vercel.app/) &nbsp;|&nbsp; 📖 **API Docs:** [go-api-starterkit.onrender.com/docs](https://go-api-starterkit.onrender.com/docs)
 
@@ -20,18 +22,19 @@ This project provides a complete authentication and authorization foundation bui
 
 **Core features:**
 - User registration and login
-- Access token and refresh token flow
-- Logout, profile, and session management endpoints
+- Access token and refresh token flow with token rotation
+- Per-device session management — list, revoke, and logout individual sessions
 - Self profile update and password change
 - Email verification, forgot password, and reset password
-- Google, Facebook, and Apple social login
+- Google, Facebook, and Apple social login (server-side token validation)
 - Admin user management
-- Audit trail for important auth and user actions
-- Optional AI-powered audit log investigator (mock or Ollama)
-- Permission-based authorization for admin actions
-- Basic rate limiting with a swappable store abstraction and hardened security headers
+- Audit trail for all important auth and user actions
+- Optional AI-powered audit log investigator (Ollama, OpenAI, Gemini, or mock)
+- Role-based access control (RBAC) with fine-grained permission checks per route
+- Per-route rate limiting with a swappable store abstraction
+- Hardened security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options)
 - Request-scoped structured logging with request ID propagation
-- Database migration and seeding
+- Database migration and seeding via golang-migrate
 - Local Docker workflow with Nginx, PostgreSQL, and Redis
 - Generic PostgreSQL-based deployment support
 
@@ -48,18 +51,15 @@ This project provides a complete authentication and authorization foundation bui
 | Auth | JWT |
 | Email | SendGrid |
 | Migrations | golang-migrate |
-| AI | Ollama (optional) |
+| AI | Ollama / OpenAI / Gemini (optional) |
 | Infrastructure | Docker, Nginx, Redis |
+
+---
+
 
 ## Architecture
 
 ![Architecture](docs/architecture.svg)
-
-### Go toolchain
-
-`go.mod` declares **Go 1.25** because `go mod tidy` pulls that floor from transitive modules (for example `golang.org/x/oauth2`, `golang.org/x/sys`, and related `golang.org/x/*` releases used by Google APIs and the rest of the graph). Install a [supported Go toolchain](https://go.dev/dl/) that satisfies the `go` line before running `go test` or `go build`. If you must target an older Go release, you will need to fork and pin older `golang.org/x/*` (and possibly trim Google social-login dependencies)—that is not supported in this template out of the box.
-
----
 
 ## Quickstart
 
@@ -147,7 +147,6 @@ AI_PROVIDER=mock
 AI_MODEL=mock-model
 AI_BASE_URL=
 AI_API_KEY=
-REDIS_URL=
 ```
 
 ### Notes
@@ -160,12 +159,10 @@ REDIS_URL=
 - `GOOGLE_CLIENT_ID` is optional but recommended so Google token validation checks the audience claim.
 - `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET` are required for Facebook social login.
 - `APPLE_CLIENT_ID` is required for Sign in with Apple token validation.
-- Facebook and Apple social login are implemented, but production-hardening steps such as `appsecret_proof` for Facebook and stronger nonce handling for Apple should still be considered before public internet exposure.
 - `AI_ENABLED=false` keeps the app fully usable without AI.
 - `AI_PROVIDER` supports `mock`, `ollama`, `openai`, and `gemini`.
-- `AI_BASE_URL` is optional for hosted providers and only required when `AI_PROVIDER=ollama`.
-- `AUTO_RUN_MIGRATIONS` and `AUTO_RUN_SEEDS` are optional flags for startup-time initialization (keep `false` for local and Docker).
-- `REDIS_URL` (optional) enables a shared Redis-backed rate limit store for auth endpoints; when unset, the app uses an in-memory limiter suitable for a single instance. Wiring happens in [`internal/appsetup/rate_limit_store.go`](internal/appsetup/rate_limit_store.go) so `internal/config` stays free of `middleware` imports.
+- `AI_BASE_URL` is only required when `AI_PROVIDER=ollama`.
+- `AUTO_RUN_MIGRATIONS` and `AUTO_RUN_SEEDS` are optional flags for startup-time initialization. Keep these `false` for local and Docker workflows — run migrations and seeds manually instead.
 
 ---
 
@@ -210,7 +207,14 @@ AI_BASE_URL=http://localhost:11434
 AI_TIMEOUT_SECONDS=30
 ```
 
-For OpenAI-hosted AI:
+Make sure Ollama is running and the model is pulled:
+
+```bash
+ollama serve
+ollama pull qwen2.5:3b
+```
+
+For OpenAI:
 
 ```env
 AI_ENABLED=true
@@ -220,7 +224,7 @@ AI_API_KEY=your_openai_api_key
 AI_TIMEOUT_SECONDS=30
 ```
 
-For Gemini free-tier style demos:
+For Gemini:
 
 ```env
 AI_ENABLED=true
@@ -228,13 +232,6 @@ AI_PROVIDER=gemini
 AI_MODEL=gemini-2.5-flash
 AI_API_KEY=your_gemini_api_key
 AI_TIMEOUT_SECONDS=30
-```
-
-Make sure Ollama is running and the model is available:
-
-```bash
-ollama serve
-ollama pull qwen2.5:3b
 ```
 
 ### Typical Admin Flow
@@ -287,7 +284,7 @@ POST /auth/admin/audit-logs/investigate
 - Identical requests from the same admin over the same log snapshot are deduplicated and return the existing saved investigation.
 - The server applies a hard cap to the investigation window to avoid overly large prompts.
 - Larger windows are compressed into chunk summaries before being sent to the model.
-- Creating or reusing an audit investigation is itself written into the audit log trail.
+- Creating or reusing an audit investigation is itself recorded in the audit log.
 
 ### Common Failures
 
@@ -297,7 +294,7 @@ POST /auth/admin/audit-logs/investigate
 | `ollama is unavailable` | Ollama is not running | Run `ollama serve` |
 | `ollama model is not available` | Model not pulled | Run `ollama pull <model>` |
 | `openai error: bad api key` | Invalid or missing OpenAI API key | Set `AI_API_KEY` to a valid OpenAI key |
-| `gemini error: unsupported model` | Wrong Gemini model name or unavailable model | Use a supported Gemini model such as `gemini-2.5-flash` |
+| `gemini error: unsupported model` | Wrong Gemini model name | Use a supported model such as `gemini-2.5-flash` |
 | `ai investigation timed out` | Model too slow | Increase `AI_TIMEOUT_SECONDS` or use a smaller model |
 
 ---
@@ -312,7 +309,7 @@ POST /auth/admin/audit-logs/investigate
 | POST | `/auth/login` | Login and receive tokens |
 | POST | `/auth/refresh` | Refresh access token |
 | GET | `/auth/verify` | Verify email address |
-| POST | `/auth/resend-verification` | Resend verification email |
+| GET | `/auth/resend-verification` | Resend verification email |
 | POST | `/auth/forgot-password` | Request password reset |
 | POST | `/auth/reset-password` | Reset password with token |
 | POST | `/auth/social-login` | Login via Google, Facebook, or Apple |
@@ -355,13 +352,373 @@ POST /auth/admin/audit-logs/investigate
 ## API Conventions
 
 - Authenticated routes require `Authorization: Bearer <access_token>`
-- Access tokens are short-lived (10 minutes) and carry a security version; admin routes reject tokens that no longer match the database after role or password changes
 - Admin routes require an access token that belongs to an admin user
 - Refresh tokens are only valid for `POST /auth/refresh`
 - Success responses use the envelope: `status`, `message`, optional `data`, optional `meta`
 - Error responses use the envelope: `status`, `message`, optional `errors`
 - OpenAPI reference: [`docs/openapi.yaml`](docs/openapi.yaml)
 - Swagger UI: served at `/docs`
+
+---
+
+## Example Requests
+
+### Register
+
+```http
+POST /auth/register
+Content-Type: application/json
+
+{
+  "name": "Tester",
+  "email": "tester@example.com",
+  "password": "secret123"
+}
+```
+
+Response:
+
+```json
+{
+  "status": "success",
+  "message": "User registered"
+}
+```
+
+### Login
+
+```http
+POST /auth/login
+Content-Type: application/json
+X-Device-ID: web
+
+{
+  "email": "tester@example.com",
+  "password": "secret123"
+}
+```
+
+Response:
+
+```json
+{
+  "status": "success",
+  "message": "Login success",
+  "data": {
+    "access_token": "<jwt>",
+    "refresh_token": "<jwt>"
+  }
+}
+```
+
+### Profile
+
+```http
+GET /auth/profile
+Authorization: Bearer <access_token>
+```
+
+Response:
+
+```json
+{
+  "status": "success",
+  "message": "Profile fetched",
+  "data": {
+    "id": 1,
+    "name": "Tester",
+    "email": "tester@example.com",
+    "role": "user"
+  }
+}
+```
+
+---
+
+## cURL Examples
+
+Set a base URL first:
+
+```bash
+BASE_URL=http://localhost:8080
+```
+
+### Health
+
+```bash
+curl -X GET "$BASE_URL/health"
+```
+
+### Register
+
+```bash
+curl -X POST "$BASE_URL/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Tester",
+    "email": "tester@example.com",
+    "password": "secret123"
+  }'
+```
+
+### Login
+
+```bash
+curl -X POST "$BASE_URL/auth/login" \
+  -H "Content-Type: application/json" \
+  -H "X-Device-ID: web" \
+  -d '{
+    "email": "tester@example.com",
+    "password": "secret123"
+  }'
+```
+
+Store tokens for use in subsequent requests:
+
+```bash
+TOKENS=$(curl -s -X POST "$BASE_URL/auth/login" \
+  -H "Content-Type: application/json" \
+  -H "X-Device-ID: web" \
+  -d '{
+    "email": "tester@example.com",
+    "password": "secret123"
+  }')
+
+ACCESS_TOKEN=$(echo $TOKENS | jq -r '.data.access_token')
+REFRESH_TOKEN=$(echo $TOKENS | jq -r '.data.refresh_token')
+```
+
+### Profile
+
+```bash
+curl -X GET "$BASE_URL/auth/profile" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### Update Profile
+
+```bash
+curl -X PATCH "$BASE_URL/auth/profile" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Tester Updated"}'
+```
+
+### Change Password
+
+```bash
+curl -X PATCH "$BASE_URL/auth/change-password" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "current_password": "secret123",
+    "new_password": "newsecret123"
+  }'
+```
+
+### Refresh Token
+
+```bash
+curl -X POST "$BASE_URL/auth/refresh" \
+  -H "Content-Type: application/json" \
+  -d "{\"refresh_token\": \"$REFRESH_TOKEN\"}"
+```
+
+### Verify Email
+
+```bash
+curl -X GET "$BASE_URL/auth/verify?token=<verify-token>"
+```
+
+### Resend Verification
+
+```bash
+curl -X GET "$BASE_URL/auth/resend-verification?email=tester@example.com"
+```
+
+### Forgot Password
+
+```bash
+curl -X POST "$BASE_URL/auth/forgot-password" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "tester@example.com"}'
+```
+
+### Reset Password
+
+```bash
+curl -X POST "$BASE_URL/auth/reset-password" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "<reset-token>",
+    "new_password": "newsecret123"
+  }'
+```
+
+### Social Login
+
+Supported providers: `google`, `facebook`, `apple`.
+
+- Google and Apple expect an ID token.
+- Facebook expects a user access token.
+- All three use the same `token` field for consistency.
+- The starterkit requires an email from the provider to map or create a local user.
+
+```bash
+curl -X POST "$BASE_URL/auth/social-login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "google",
+    "token": "<provider-token>"
+  }'
+```
+
+### Sessions
+
+List active sessions:
+
+```bash
+curl -X GET "$BASE_URL/auth/sessions" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "X-Device-ID: web"
+```
+
+Revoke one session by ID:
+
+```bash
+curl -X DELETE "$BASE_URL/auth/sessions/1" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+Logout current session:
+
+```bash
+curl -X POST "$BASE_URL/auth/logout" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "X-Device-ID: web"
+```
+
+Logout all sessions:
+
+```bash
+curl -X POST "$BASE_URL/auth/logout-all" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+Logout every session except the current device:
+
+```bash
+curl -X POST "$BASE_URL/auth/logout-others" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "X-Device-ID: web"
+```
+
+### Admin: Users
+
+```bash
+# List users
+curl -X GET "$BASE_URL/auth/admin/users?page=1&limit=10" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# Get user by ID
+curl -X GET "$BASE_URL/auth/admin/users/1" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# Create user
+curl -X POST "$BASE_URL/auth/admin/users" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Managed User",
+    "email": "managed@example.com",
+    "password": "secret123",
+    "role": "user",
+    "is_verified": true
+  }'
+
+# Update user
+curl -X PUT "$BASE_URL/auth/admin/users/1" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Managed User Updated",
+    "email": "managed@example.com",
+    "role": "admin",
+    "is_verified": true
+  }'
+
+# Delete user
+curl -X DELETE "$BASE_URL/auth/admin/users/1" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### Admin: Roles and Permissions
+
+```bash
+# List roles
+curl -X GET "$BASE_URL/auth/admin/roles" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# List permissions
+curl -X GET "$BASE_URL/auth/admin/permissions" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# Get permissions for a role
+curl -X GET "$BASE_URL/auth/admin/roles/2/permissions" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# Update permissions for a role
+curl -X PUT "$BASE_URL/auth/admin/roles/2/permissions" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "permissions": [
+      "user.read_all",
+      "user.read",
+      "permission.read",
+      "role.read",
+      "role.update_permissions"
+    ]
+  }'
+```
+
+### Admin: Audit Logs
+
+```bash
+# List audit logs with filters
+curl -X GET "$BASE_URL/auth/admin/audit-logs?page=1&limit=10&resource=auth&status=failed&actor_user_id=1&search=invalid&date_from=2026-04-20T00:00:00Z&date_to=2026-04-21T00:00:00Z" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# Export audit logs as CSV
+curl -X GET "$BASE_URL/auth/admin/audit-logs/export?resource=auth&status=failed" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### Admin: AI Audit Investigation
+
+```bash
+# Run an AI investigation over a filtered log window
+curl -X POST "$BASE_URL/auth/admin/audit-logs/investigate" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "login",
+    "resource": "auth",
+    "status": "failed",
+    "search": "invalid credentials",
+    "date_from": "2026-04-20T00:00:00Z",
+    "date_to": "2026-04-21T00:00:00Z",
+    "limit": 50
+  }'
+
+# List saved investigations
+curl -X GET "$BASE_URL/auth/admin/audit-logs/investigations" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# Get a saved investigation by ID
+curl -X GET "$BASE_URL/auth/admin/audit-logs/investigations/1" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
 
 ---
 
@@ -399,10 +756,10 @@ The API will be available at `http://localhost:8080`. The app respects the `PORT
 
 ## Docker Workflow
 
-The Docker setup includes an application container, PostgreSQL, Redis, Nginx gateway, and a `db-setup` container for migration and seed.
+The Docker setup includes an application container, PostgreSQL, Redis, Nginx gateway, and a `db-setup` container that handles migrations and seeding.
 
 ```bash
-# Start full stack
+# Start the full stack
 docker-compose --env-file .env.docker up --build
 
 # Or use Makefile shortcuts
@@ -419,12 +776,15 @@ The gateway is exposed at `http://localhost`. The Nginx layer is optional — th
 ## Database Tasks
 
 ```bash
-make migrate-up           # run migrations
-make migrate-down         # roll back one migration
-make migrate-status       # show migration status
-make migrate-create NAME=create_example_table
-make seed                 # run seed data
-make db-setup             # run migrations + seed
+make migrate-up                              # run all pending migrations
+make migrate-down                            # roll back one migration
+make migrate-down-all                        # roll back all migrations
+make migrate-status                          # show migration status
+make migrate-create NAME=create_example_table  # create a new migration file
+make migrate-force VERSION=1                 # force migration version
+make migrate-drop CONFIRM=1                  # drop the schema (destructive)
+make seed                                    # run seed data
+make db-setup                               # run migrations + seed
 ```
 
 ---
@@ -443,7 +803,27 @@ Included files:
 - Collection: [`go-api-starterkit.postman_collection.json`](postman/go-api-starterkit.postman_collection.json)
 - Environment: [`go-api-starterkit.local.postman_environment.json`](postman/go-api-starterkit.local.postman_environment.json)
 
-Recommended flow: Health → Register → Verify Email → Login → Profile → Update Profile → Change Password → Refresh Token → Logout → Admin endpoints → Audit Logs → AI Investigate
+Recommended flow:
+
+1. `Health`
+2. `Register`
+3. `Verify Email` — or mark the user as verified directly in the database
+4. `Login` — stores `access_token` and `refresh_token` automatically
+5. `Profile`
+6. `Update Profile`
+7. `Change Password`
+8. `Refresh Token`
+9. `Sessions` — list and revoke individual sessions
+10. `Logout`
+11. Admin requests with an admin token
+12. `Audit Logs` — filter by resource, status, date range
+13. `AI Investigate` — run an investigation over a filtered log window
+
+Notes:
+- `Login` and `Refresh Token` update the Postman environment variables for `access_token` and `refresh_token` automatically.
+- `Verify Email` and `Reset Password` require manual token input unless you automate email capture.
+- Admin endpoints require an admin access token.
+- The AI investigate endpoint requires `AI_ENABLED=true` in your environment.
 
 ---
 
@@ -480,8 +860,9 @@ This starterkit is designed to stay platform-agnostic.
 - Run migrations before serving traffic
 - Run seed data only when you intentionally need initial roles, permissions, or admin users
 - Inject secrets through your deployment platform instead of committing real env files
+- The app does not redirect HTTP to HTTPS — this should be handled at the gateway or load balancer layer. Do not expose port 8080 directly to the public internet without TLS termination in front of it.
 
-**TLS / HTTPS:** The Go process listens for plain HTTP (for example on `PORT` / 8080). Production setups should terminate TLS at a reverse proxy or load balancer (the included Docker stack uses Nginx for this). If clients can reach the app port directly without TLS (misconfigured firewall, bypassing the proxy), traffic will not be encrypted at the application layer—ensure only the TLS front end is exposed on the public internet.
+Build and start:
 
 ```bash
 go build -tags netgo -ldflags '-s -w' -o app ./cmd/api
@@ -492,14 +873,16 @@ go build -tags netgo -ldflags '-s -w' -o app ./cmd/api
 
 ## Security Notes
 
-- Never commit real secrets to the repository
-- Use secret managers or platform-managed env vars for production deployments
-- Rotate any third-party credentials that were ever exposed locally or in git history
-- Use separate credentials for local, staging, and production environments
-- Sensitive auth endpoints share one rate-limit store: set `REDIS_URL` for Redis (multi-instance friendly); otherwise an in-memory store is used (single instance only).
-- The app sets baseline security headers including CSP, HSTS on HTTPS requests, `X-Content-Type-Options`, and `X-Frame-Options`
-- Request IDs are propagated via the `X-Request-ID` header
-- Trusted proxy handling is configurable through `TRUSTED_PROXIES`
+- Never commit real secrets to the repository.
+- Use secret managers or platform-managed env vars for production deployments.
+- Rotate any third-party credentials that were ever exposed locally or in git history.
+- Use separate credentials for local, staging, and production environments.
+- The default rate limiter is in-memory and works correctly for a single instance. For multi-instance deployments, replace it with a shared backend such as Redis using the `RateLimitStore` interface.
+- The app sets baseline security headers including CSP, HSTS (on HTTPS), `X-Content-Type-Options`, and `X-Frame-Options`.
+- Request IDs are propagated via the `X-Request-ID` header for tracing across the gateway and backend.
+- Trusted proxy handling is configurable through `TRUSTED_PROXIES` so client IP-based audit and rate limiting work correctly behind a gateway.
+- Refresh tokens are rotated on every use — old tokens are invalidated immediately.
+- Password reset tokens are invalidated if the user changes their password after the token was issued.
 
 ---
 
@@ -518,20 +901,59 @@ go build -tags netgo -ldflags '-s -w' -o app ./cmd/api
 
 **`invalid token` on `/auth/profile`**
 
-Usually caused by a stale or incorrect token. Run Login again, confirm `access_token` exists in your Postman environment, and retry.
+Usually caused by a stale or incorrect token:
+- A `refresh_token` was used instead of an `access_token`
+- The access token has expired (15-minute window)
+- The token was not stored correctly in Postman
+
+Fix: run Login again, confirm `access_token` is set in your active Postman environment, and retry.
 
 **`relation "users" does not exist`**
 
-Migrations have not run yet. Run `go run ./cmd/migrate` or `make db-setup`.
+Migrations have not run yet. Fix:
+
+```bash
+go run ./cmd/migrate
+# or
+make db-setup
+```
+
+**`email not verified` on login**
+
+The user was registered but the verification email was not clicked. Either:
+- Check your inbox and click the link
+- Resend with `GET /auth/resend-verification?email=<email>`
+- Or set `is_verified = true` directly in the database for development
+
+**`ai investigator is not enabled` on `/auth/admin/audit-logs/investigate`**
+
+`AI_ENABLED` is `false` in your environment. Set `AI_ENABLED=true`, choose a provider, and restart the server. For quick testing, use `AI_PROVIDER=mock`.
+
+**Social login returns `email not available from <provider>`**
+
+The provider did not return an email in the token payload. This can happen when:
+- The user has not granted email permission on the provider side
+- Apple Sign In is used for the first time and the email is hidden by Apple
+
+Ensure email scope is requested in your frontend OAuth flow before calling this endpoint.
+
+**`relation "audit_investigations" does not exist`**
+
+The migration for the AI investigation feature has not run. Run all pending migrations:
+
+```bash
+go run ./cmd/migrate
+```
 
 ---
 
 ## Roadmap Ideas
 
-- Add database-backed integration tests
-- Split readiness and liveness probes
-- Add CI validation for migration and deployment smoke checks
-- Further reduce infrastructure-specific behavior inside app startup
+- Redis-backed rate limit store for multi-instance deployments
+- Readiness and liveness probe endpoints
+- Database-backed integration tests
+- CI validation for migration smoke checks
+- Refresh token family tracking to detect token theft
 
 ---
 

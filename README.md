@@ -13,7 +13,7 @@
 
 Intended for Go backend developers who want a solid, security-conscious auth foundation to build on — without reinventing JWT flows, email verification, social login, or audit logging from scratch.
 
-🔗 **Dashboard Demo:** [gokitdash.vercel.app](https://gokitdash.vercel.app/) &nbsp;|&nbsp; 📖 **API Docs:** [pleco-api.onrender.com/docs](https://pleco-api.onrender.com/docs)
+🔗 **Dashboard Demo:** [gokitdash.vercel.app](https://pleco-console.vercel.app/) &nbsp;|&nbsp; 📖 **API Docs:** [pleco-api.onrender.com/docs](https://pleco-api.onrender.com/docs)
 
 ---
 

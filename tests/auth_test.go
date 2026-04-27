@@ -325,6 +325,34 @@ func TestAuthMiddleware_RejectsMalformedClaimsGracefully(t *testing.T) {
 	assert.Equal(t, "invalid token", bodyMap["message"])
 }
 
+func TestAuthMiddleware_RejectsAccessTokenWithoutVersionClaim(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	jwtService := services.NewJWTService([]byte("super_secret_key_123_must_be_32_bytes_long_minimum"))
+
+	router.GET("/protected", middleware.AuthMiddleware(jwtService), func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	tokenString, err := jwtService.GenerateCustomClaimsToken(map[string]interface{}{
+		"user_id": uint(1),
+		"role":    "user",
+		"type":    "access",
+	}, time.Minute)
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer "+tokenString)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	bodyMap := decodeBodyMap(t, w)
+	assert.Equal(t, "error", bodyMap["status"])
+	assert.Equal(t, "invalid token", bodyMap["message"])
+}
+
 func TestAuthService_Logout_MissingTokenIsIgnored(t *testing.T) {
 	refreshRepo := &stubRefreshTokenRepo{
 		findByUserAndDevice: func(userID uint, deviceID string) (*token.RefreshToken, error) {
@@ -524,6 +552,47 @@ func TestAuthService_LogoutOtherSessions(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestAuthService_LogoutAll_RevokesRefreshTokensAndBumpsAccessTokenVersion(t *testing.T) {
+	updatedVersion := uint(0)
+	refreshRevoked := false
+
+	userRepo := &stubUserRepo{
+		findByID: func(id uint) (*user.User, error) {
+			assert.Equal(t, uint(9), id)
+			return &user.User{Model: gorm.Model{ID: id}, AccessTokenVersion: 3}, nil
+		},
+		update: func(u *user.User) error {
+			updatedVersion = u.AccessTokenVersion
+			return nil
+		},
+	}
+	refreshRepo := &stubRefreshTokenRepo{
+		deleteByUser: func(userID uint) error {
+			assert.Equal(t, uint(9), userID)
+			refreshRevoked = true
+			return nil
+		},
+	}
+
+	service := auth.NewAuthService(
+		nil,
+		userRepo,
+		refreshRepo,
+		&stubEmailVerificationRepo{},
+		&stubSocialRepo{},
+		nil,
+		nil,
+		nil,
+		config.SocialConfig{},
+	)
+
+	err := service.LogoutAll(9, "Browser", "127.0.0.1")
+
+	assert.NoError(t, err)
+	assert.Equal(t, uint(4), updatedVersion)
+	assert.True(t, refreshRevoked)
+}
+
 func TestAuthService_RevokeSession_DeletesOwnedSession(t *testing.T) {
 	var deletedSessionID uint
 
@@ -643,6 +712,53 @@ func TestProfile_Success(t *testing.T) {
 	data, ok := bodyMap["data"].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, "test@mail.com", data["email"])
+}
+
+func TestResetPassword_RevokesRefreshTokensAndBumpsAccessTokenVersion(t *testing.T) {
+	jwtService := services.NewJWTService([]byte("super_secret_key_123_must_be_32_bytes_long_minimum"))
+	resetToken, err := jwtService.GenerateCustomClaimsToken(map[string]interface{}{
+		"user_id": uint(7),
+		"email":   "test@mail.com",
+		"purpose": "password_reset",
+	}, time.Minute)
+	require.NoError(t, err)
+
+	updatedVersion := uint(0)
+	refreshRevoked := false
+	userRepo := &stubUserRepo{
+		findByID: func(id uint) (*user.User, error) {
+			return &user.User{Model: gorm.Model{ID: id}, PasswordUpdatedAt: time.Now().Add(-time.Hour), AccessTokenVersion: 2}, nil
+		},
+		update: func(u *user.User) error {
+			updatedVersion = u.AccessTokenVersion
+			return nil
+		},
+	}
+	refreshRepo := &stubRefreshTokenRepo{
+		deleteByUser: func(userID uint) error {
+			assert.Equal(t, uint(7), userID)
+			refreshRevoked = true
+			return nil
+		},
+	}
+
+	service := auth.NewAuthService(
+		nil,
+		userRepo,
+		refreshRepo,
+		&stubEmailVerificationRepo{},
+		&stubSocialRepo{},
+		jwtService,
+		nil,
+		nil,
+		config.SocialConfig{},
+	)
+
+	err = service.ResetPassword(resetToken, "newSecret123")
+
+	require.NoError(t, err)
+	assert.Equal(t, uint(3), updatedVersion)
+	assert.True(t, refreshRevoked)
 }
 
 func TestVerifyEmail_Success(t *testing.T) {

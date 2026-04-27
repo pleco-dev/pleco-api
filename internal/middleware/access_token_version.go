@@ -58,7 +58,7 @@ func RequireAccessTokenVersion(src AccessTokenVersionSource) gin.HandlerFunc {
 func accessTokenVersionFromContext(c *gin.Context) (uint, bool) {
 	raw, exists := c.Get("access_token_version")
 	if !exists {
-		return 0, true
+		return 0, false
 	}
 	switch v := raw.(type) {
 	case uint:

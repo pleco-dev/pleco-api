@@ -54,9 +54,35 @@ func AuthMiddleware(jwtService *services.JWTService) gin.HandlerFunc {
 			return
 		}
 
+		tv, ok := claims["tv"]
+		if !ok {
+			httpx.Respond(c, 401, "error", "invalid token", nil, nil, nil)
+			c.Abort()
+			return
+		}
+
 		var accessTokenVersion uint
-		if tv, ok := claims["tv"].(float64); ok {
-			accessTokenVersion = uint(tv)
+		switch value := tv.(type) {
+		case float64:
+			if value < 0 {
+				httpx.Respond(c, 401, "error", "invalid token", nil, nil, nil)
+				c.Abort()
+				return
+			}
+			accessTokenVersion = uint(value)
+		case uint:
+			accessTokenVersion = value
+		case int:
+			if value < 0 {
+				httpx.Respond(c, 401, "error", "invalid token", nil, nil, nil)
+				c.Abort()
+				return
+			}
+			accessTokenVersion = uint(value)
+		default:
+			httpx.Respond(c, 401, "error", "invalid token", nil, nil, nil)
+			c.Abort()
+			return
 		}
 
 		userID := uint(userIDValue)

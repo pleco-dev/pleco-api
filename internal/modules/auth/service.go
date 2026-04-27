@@ -15,6 +15,17 @@ import (
 	"gorm.io/gorm"
 )
 
+type userRepositoryTx interface {
+	FindByID(id uint) (*userModule.User, error)
+	Update(user *userModule.User) error
+	WithTx(tx *gorm.DB) userModule.Repository
+}
+
+type refreshTokenRepositoryTx interface {
+	DeleteByUser(userID uint) error
+	WithTx(tx *gorm.DB) tokenModule.RefreshTokenRepository
+}
+
 type AuthService interface {
 	Register(user *userModule.User, password string) error
 	Login(email, password, deviceID, userAgent, ipAddress string) (*AuthTokens, error)
@@ -133,4 +144,14 @@ func NewAuthService(
 		s.socialHTTPClient = &http.Client{Timeout: 10 * time.Second}
 	}
 	return s
+}
+
+func (s *authService) runUserRefreshTx(fn func(userRepo userRepositoryTx, refreshRepo refreshTokenRepositoryTx) error) error {
+	if s.DB == nil {
+		return fn(s.UserRepo, s.RefreshTokenRepo)
+	}
+
+	return s.DB.Transaction(func(tx *gorm.DB) error {
+		return fn(s.UserRepo.WithTx(tx), s.RefreshTokenRepo.WithTx(tx))
+	})
 }

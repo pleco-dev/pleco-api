@@ -31,7 +31,7 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtSe
 
 	rateStore := newRateLimitStore(cfg.RedisURL)
 	tokenVersionSrc := accessTokenVersionAdapter{repo: userModule.Repository}
-	auth.SetupRoutes(api, authModule.Handler, jwtService, rateStore)
+	auth.SetupRoutes(api, authModule.Handler, jwtService, rateStore, tokenVersionSrc)
 	user.SetupRoutes(api, userModule.Handler, jwtService, permissionModule.Service, tokenVersionSrc)
 	audit.SetupRoutes(api, auditModule.Handler, jwtService, permissionModule.Service, tokenVersionSrc)
 	role.SetupRoutes(api, roleModule.Handler, jwtService, permissionModule.Service, tokenVersionSrc)

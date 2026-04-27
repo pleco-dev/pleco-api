@@ -13,13 +13,14 @@ import (
 )
 
 type Service struct {
+	DB               *gorm.DB
 	UserRepo         Repository
 	RefreshTokenRepo tokenModule.RefreshTokenRepository
 	AuditSvc         *audit.Service
 }
 
-func NewService(userRepo Repository, refreshRepo tokenModule.RefreshTokenRepository, auditSvc *audit.Service) *Service {
-	return &Service{UserRepo: userRepo, RefreshTokenRepo: refreshRepo, AuditSvc: auditSvc}
+func NewService(db *gorm.DB, userRepo Repository, refreshRepo tokenModule.RefreshTokenRepository, auditSvc *audit.Service) *Service {
+	return &Service{DB: db, UserRepo: userRepo, RefreshTokenRepo: refreshRepo, AuditSvc: auditSvc}
 }
 
 func (s *Service) GetAllUsers(page, limit int, search, role string) ([]User, int64, error) {
@@ -82,13 +83,23 @@ func (s *Service) UpdateUser(id uint, input UpdateUserRequest) (*User, error) {
 
 	if oldRole != user.Role {
 		user.AccessTokenVersion++
-		_ = s.RefreshTokenRepo.DeleteByUser(user.ID)
+	}
+
+	if oldRole != user.Role {
+		if err := s.runInTx(func(userRepo Repository, refreshRepo tokenModule.RefreshTokenRepository) error {
+			if err := userRepo.Update(user); err != nil {
+				return err
+			}
+			return refreshRepo.DeleteByUser(user.ID)
+		}); err != nil {
+			return nil, err
+		}
+		return user, nil
 	}
 
 	if err := s.UserRepo.Update(user); err != nil {
 		return nil, err
 	}
-
 	return user, nil
 }
 
@@ -125,9 +136,24 @@ func (s *Service) ChangePassword(id uint, currentPassword, newPassword string) e
 	user.PasswordUpdatedAt = time.Now()
 	user.AccessTokenVersion++
 
-	return s.UserRepo.Update(user)
+	return s.runInTx(func(userRepo Repository, refreshRepo tokenModule.RefreshTokenRepository) error {
+		if err := userRepo.Update(user); err != nil {
+			return err
+		}
+		return refreshRepo.DeleteByUser(user.ID)
+	})
 }
 
 func (s *Service) DeleteUser(id uint) error {
 	return s.UserRepo.Delete(id)
+}
+
+func (s *Service) runInTx(fn func(userRepo Repository, refreshRepo tokenModule.RefreshTokenRepository) error) error {
+	if s.DB == nil {
+		return fn(s.UserRepo, s.RefreshTokenRepo)
+	}
+
+	return s.DB.Transaction(func(tx *gorm.DB) error {
+		return fn(s.UserRepo.WithTx(tx), s.RefreshTokenRepo.WithTx(tx))
+	})
 }

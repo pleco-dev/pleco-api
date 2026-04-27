@@ -16,7 +16,7 @@ type Module struct {
 func BuildModule(db *gorm.DB, auditSvc *audit.Service) *Module {
 	repository := NewRepository(db)
 	refreshRepo := tokenModule.NewRefreshTokenRepository(db)
-	service := NewService(repository, refreshRepo, auditSvc)
+	service := NewService(db, repository, refreshRepo, auditSvc)
 	handler := NewHandler(service)
 
 	return &Module{

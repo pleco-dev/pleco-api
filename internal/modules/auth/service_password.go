@@ -81,7 +81,12 @@ func (s *authService) ResetPassword(tokenString string, newPassword string) erro
 	user.PasswordUpdatedAt = time.Now()
 	user.AccessTokenVersion++
 
-	if err := s.UserRepo.Update(user); err != nil {
+	if err := s.runUserRefreshTx(func(userRepo userRepositoryTx, refreshRepo refreshTokenRepositoryTx) error {
+		if err := userRepo.Update(user); err != nil {
+			return err
+		}
+		return refreshRepo.DeleteByUser(user.ID)
+	}); err != nil {
 		return err
 	}
 

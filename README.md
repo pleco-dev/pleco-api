@@ -39,6 +39,12 @@ This project provides a complete authentication and authorization foundation bui
 - Local Docker workflow with Nginx, PostgreSQL, and Redis
 - Generic PostgreSQL-based deployment support
 
+**Session revocation behavior:**
+- Access tokens carry a token-version claim and protected routes reject stale tokens after revocation-sensitive events.
+- Password changes and password resets revoke all stored refresh tokens for the user.
+- Admin role changes revoke the target user's refresh tokens and invalidate previously issued access tokens.
+- `POST /auth/logout-all` revokes every session, including the current access token for subsequent requests.
+
 ---
 
 ## Tech Stack
@@ -359,6 +365,8 @@ POST /auth/admin/audit-logs/investigate
 - Authenticated routes require `Authorization: Bearer <access_token>`
 - Admin routes require an access token that belongs to an admin user
 - Refresh tokens are only valid for `POST /auth/refresh`
+- Access tokens must include the server-issued token-version claim
+- After password reset, password change, role change, or `logout-all`, previously issued tokens can start returning `401` immediately
 - Success responses use the envelope: `status`, `message`, optional `data`, optional `meta`
 - Error responses use the envelope: `status`, `message`, optional `errors`
 - OpenAPI reference: [`docs/openapi.yaml`](docs/openapi.yaml)
@@ -523,6 +531,8 @@ curl -X PATCH "$BASE_URL/auth/change-password" \
   }'
 ```
 
+After a successful password change, existing refresh tokens are revoked. Log in again before calling `POST /auth/refresh` or other authenticated flows with an old session.
+
 ### Refresh Token
 
 ```bash
@@ -563,6 +573,8 @@ curl -X POST "$BASE_URL/auth/reset-password" \
     "new_password": "newsecret123"
   }'
 ```
+
+After a successful password reset, existing refresh tokens are revoked and older access tokens can be rejected immediately on protected routes.
 
 ### Social Login
 
@@ -614,6 +626,8 @@ Logout all sessions:
 curl -X POST "$BASE_URL/auth/logout-all" \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
+
+After `logout-all`, the current access token should be treated as expired for the rest of the session and the user should log in again.
 
 Logout every session except the current device:
 

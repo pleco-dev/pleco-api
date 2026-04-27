@@ -46,7 +46,19 @@ func (s *authService) Logout(userID uint, deviceID string) error {
 }
 
 func (s *authService) LogoutAll(userID uint, userAgent, ipAddress string) error {
-	if err := s.RefreshTokenRepo.DeleteByUser(userID); err != nil {
+	if err := s.runUserRefreshTx(func(userRepo userRepositoryTx, refreshRepo refreshTokenRepositoryTx) error {
+		user, err := userRepo.FindByID(userID)
+		if err != nil {
+			return err
+		}
+
+		user.AccessTokenVersion++
+		if err := userRepo.Update(user); err != nil {
+			return err
+		}
+
+		return refreshRepo.DeleteByUser(userID)
+	}); err != nil {
 		return err
 	}
 

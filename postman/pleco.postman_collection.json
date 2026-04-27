@@ -301,7 +301,13 @@
                 "exec": [
                   "pm.test('change password returns known status', function () {",
                   "  pm.expect([200, 400, 401]).to.include(pm.response.code);",
-                  "});"
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  pm.environment.set('user_password', 'newsecret123');",
+                  "  pm.environment.unset('access_token');",
+                  "  pm.environment.unset('refresh_token');",
+                  "  console.log('password changed; tokens cleared, log in again before calling protected or refresh endpoints');",
+                  "}"
                 ],
                 "type": "text/javascript"
               }
@@ -500,7 +506,10 @@
                 "exec": [
                   "pm.test('logout all sessions returns 200', function () {",
                   "  pm.response.to.have.status(200);",
-                  "});"
+                  "});",
+                  "pm.environment.unset('access_token');",
+                  "pm.environment.unset('refresh_token');",
+                  "console.log('logout-all cleared stored tokens; log in again before protected requests');"
                 ],
                 "type": "text/javascript"
               }

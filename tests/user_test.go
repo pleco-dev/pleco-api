@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"pleco-api/internal/middleware"
@@ -174,7 +175,8 @@ func TestUpdateProfile_Success(t *testing.T) {
 
 func TestChangePassword_Success(t *testing.T) {
 	repo := &stubUserRepository{}
-	service := &user.Service{UserRepo: repo}
+	refreshRepo := &stubRefreshTokenRepo{}
+	service := &user.Service{UserRepo: repo, RefreshTokenRepo: refreshRepo}
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte("secret123"), 14)
 	assert.NoError(t, err)
@@ -187,6 +189,10 @@ func TestChangePassword_Success(t *testing.T) {
 	}
 	repo.update = func(u *user.User) error {
 		return bcrypt.CompareHashAndPassword([]byte(u.Password), []byte("newsecret123"))
+	}
+	refreshRepo.deleteByUser = func(userID uint) error {
+		assert.Equal(t, uint(1), userID)
+		return nil
 	}
 
 	err = service.ChangePassword(1, "secret123", "newsecret123")
@@ -213,7 +219,7 @@ func TestCreateUser_EmailAlreadyExists(t *testing.T) {
 
 func TestChangePassword_InvalidCurrentPassword(t *testing.T) {
 	repo := &stubUserRepository{}
-	service := &user.Service{UserRepo: repo}
+	service := &user.Service{UserRepo: repo, RefreshTokenRepo: &stubRefreshTokenRepo{}}
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte("secret123"), 14)
 	assert.NoError(t, err)
@@ -228,4 +234,96 @@ func TestChangePassword_InvalidCurrentPassword(t *testing.T) {
 	err = service.ChangePassword(1, "wrong-password", "newsecret123")
 
 	assert.EqualError(t, err, "current password is incorrect")
+}
+
+func TestChangePassword_PropagatesRefreshTokenRevocationFailure(t *testing.T) {
+	repo := &stubUserRepository{}
+	refreshRepo := &stubRefreshTokenRepo{}
+	service := &user.Service{UserRepo: repo, RefreshTokenRepo: refreshRepo}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte("secret123"), 14)
+	assert.NoError(t, err)
+
+	repo.findByID = func(id uint) (*user.User, error) {
+		return &user.User{
+			Model:    gorm.Model{ID: id},
+			Password: string(hashed),
+		}, nil
+	}
+	repo.update = func(u *user.User) error { return nil }
+	refreshRepo.deleteByUser = func(userID uint) error {
+		assert.Equal(t, uint(1), userID)
+		return errors.New("delete failed")
+	}
+
+	err = service.ChangePassword(1, "secret123", "newsecret123")
+
+	assert.EqualError(t, err, "delete failed")
+}
+
+func TestUpdateUser_RoleChangeRevokesRefreshTokens(t *testing.T) {
+	repo := &stubUserRepository{}
+	refreshRepo := &stubRefreshTokenRepo{}
+	service := &user.Service{UserRepo: repo, RefreshTokenRepo: refreshRepo}
+
+	repo.findByID = func(id uint) (*user.User, error) {
+		return &user.User{
+			Model:              gorm.Model{ID: id},
+			Name:               "Old Name",
+			Email:              "old@mail.com",
+			Role:               "user",
+			AccessTokenVersion: 4,
+		}, nil
+	}
+	repo.findByEmail = func(email string) (*user.User, error) {
+		return nil, gorm.ErrRecordNotFound
+	}
+	repo.update = func(u *user.User) error {
+		assert.Equal(t, "admin", u.Role)
+		assert.Equal(t, uint(5), u.AccessTokenVersion)
+		return nil
+	}
+	refreshRepo.deleteByUser = func(userID uint) error {
+		assert.Equal(t, uint(7), userID)
+		return nil
+	}
+
+	updated, err := service.UpdateUser(7, user.UpdateUserRequest{
+		Name:       "New Name",
+		Email:      "new@mail.com",
+		Role:       "admin",
+		IsVerified: true,
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, uint(5), updated.AccessTokenVersion)
+}
+
+func TestUpdateUser_RoleChangeReturnsRefreshTokenRevocationError(t *testing.T) {
+	repo := &stubUserRepository{}
+	refreshRepo := &stubRefreshTokenRepo{}
+	service := &user.Service{UserRepo: repo, RefreshTokenRepo: refreshRepo}
+
+	repo.findByID = func(id uint) (*user.User, error) {
+		return &user.User{
+			Model:              gorm.Model{ID: id},
+			Role:               "user",
+			AccessTokenVersion: 1,
+		}, nil
+	}
+	repo.findByEmail = func(email string) (*user.User, error) {
+		return nil, gorm.ErrRecordNotFound
+	}
+	repo.update = func(u *user.User) error { return nil }
+	refreshRepo.deleteByUser = func(userID uint) error {
+		return errors.New("revoke failed")
+	}
+
+	_, err := service.UpdateUser(7, user.UpdateUserRequest{
+		Name:  "New Name",
+		Email: "new@mail.com",
+		Role:  "admin",
+	})
+
+	assert.EqualError(t, err, "revoke failed")
 }

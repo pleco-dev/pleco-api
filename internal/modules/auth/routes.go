@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(api *gin.RouterGroup, handler *AuthHandler, jwtService *services.JWTService, rateStore middleware.RateLimitStore) {
+func SetupRoutes(api *gin.RouterGroup, handler *AuthHandler, jwtService *services.JWTService, rateStore middleware.RateLimitStore, tokenVersionSrc middleware.AccessTokenVersionSource) {
 	auth := api.Group("/auth")
 	if rateStore == nil {
 		rateStore = middleware.NewInMemoryRateLimitStore()
@@ -30,6 +30,7 @@ func SetupRoutes(api *gin.RouterGroup, handler *AuthHandler, jwtService *service
 
 	protected := auth.Group("/")
 	protected.Use(middleware.AuthMiddleware(jwtService))
+	protected.Use(middleware.RequireAccessTokenVersion(tokenVersionSrc))
 	protected.GET("/profile", handler.Profile)
 	protected.GET("/sessions", handler.ListSessions)
 	protected.POST("/logout", handler.Logout)

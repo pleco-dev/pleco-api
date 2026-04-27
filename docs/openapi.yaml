@@ -165,6 +165,7 @@ paths:
     patch:
       tags: [User]
       summary: Change current user password
+      description: Revokes all stored refresh tokens for the user. Previously issued access tokens may be rejected immediately on protected routes.
       security:
         - bearerAuth: []
       requestBody:
@@ -249,6 +250,7 @@ paths:
     post:
       tags: [Auth]
       summary: Revoke all active sessions for the current user
+      description: Revokes all refresh-token-backed sessions and invalidates previously issued access tokens for subsequent protected requests.
       security:
         - bearerAuth: []
       responses:
@@ -263,6 +265,7 @@ paths:
     post:
       tags: [Auth]
       summary: Revoke all active sessions except the current device
+      description: Keeps the current device session and revokes refresh-token-backed sessions on other devices.
       security:
         - bearerAuth: []
       parameters:

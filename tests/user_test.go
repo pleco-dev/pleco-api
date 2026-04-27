@@ -1,10 +1,10 @@
 package tests
 
 import (
-	"pleco-api/internal/middleware"
-	user "pleco-api/internal/modules/user"
 	"net/http"
 	"net/http/httptest"
+	"pleco-api/internal/middleware"
+	user "pleco-api/internal/modules/user"
 	"strings"
 	"testing"
 

@@ -3,6 +3,8 @@ package tests
 import (
 	"encoding/hex"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"pleco-api/internal/appsetup"
 	"pleco-api/internal/config"
 	"pleco-api/internal/middleware"
@@ -13,8 +15,6 @@ import (
 	user "pleco-api/internal/modules/user"
 	"pleco-api/internal/services"
 	"pleco-api/tests/mocks"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"

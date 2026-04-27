@@ -2,8 +2,8 @@ package auth
 
 import (
 	"errors"
-	"pleco-api/internal/utils"
 	"net/http"
+	"pleco-api/internal/utils"
 	"strconv"
 
 	"github.com/gin-gonic/gin"

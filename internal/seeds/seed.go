@@ -2,12 +2,12 @@ package seeds
 
 import (
 	"fmt"
+	"log"
 	"pleco-api/internal/config"
 	permissionModule "pleco-api/internal/modules/permission"
 	roleModule "pleco-api/internal/modules/role"
 	userModule "pleco-api/internal/modules/user"
 	"pleco-api/internal/services"
-	"log"
 
 	"gorm.io/gorm"
 )

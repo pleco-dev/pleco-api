@@ -1035,3 +1035,11 @@ go run ./cmd/migrate
 - Security policy: [SECURITY.md](SECURITY.md)
 - Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 - CI workflow: [ci.yml](.github/workflows/ci.yml)
+
+## 📧 Contact & Support
+
+- **Email:** theplecodev@gmail.com
+- **GitHub Issues:** [Report bugs](https://github.com/pleco-dev/pleco-api/issues)
+- **LinkedIn:** [@heriheriyadi](https://linkedin.com/in/heriheriyadi)
+
+For security vulnerabilities, please email directly. See [`SECURITY.md`](SECURITY.md).

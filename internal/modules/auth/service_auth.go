@@ -149,7 +149,14 @@ func (s *authService) issueTokens(userID uint, role string, accessTokenVersion u
 		ExpiredAt: time.Now().Add(7 * 24 * time.Hour),
 	}
 
-	if err := s.RefreshTokenRepo.Save(refreshTokenModel); err != nil {
+	if err := s.runUserRefreshTx(func(_ userRepositoryTx, refreshRepo refreshTokenRepositoryTx) error {
+		if deviceID != "" {
+			if err := refreshRepo.DeleteByUserAndDevice(userID, deviceID); err != nil {
+				return err
+			}
+		}
+		return refreshRepo.Save(refreshTokenModel)
+	}); err != nil {
 		return nil, err
 	}
 

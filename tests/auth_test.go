@@ -29,17 +29,22 @@ import (
 )
 
 type stubRefreshTokenRepo struct {
+	save                func(*token.RefreshToken) error
 	findByID            func(id uint) (*token.RefreshToken, error)
 	findByUserAndDevice func(userID uint, deviceID string) (*token.RefreshToken, error)
 	findByTokenHash     func(tokenHash string) (*token.RefreshToken, error)
 	findByUser          func(userID uint) ([]token.RefreshToken, error)
 	deleteByID          func(id uint) error
 	deleteByUserAndID   func(userID, id uint) error
+	deleteByUserDevice  func(userID uint, deviceID string) error
 	deleteByUser        func(userID uint) error
 	deleteByUserExcept  func(userID uint, deviceID string) error
 }
 
-func (s *stubRefreshTokenRepo) Save(_ *token.RefreshToken) error {
+func (s *stubRefreshTokenRepo) Save(tk *token.RefreshToken) error {
+	if s.save != nil {
+		return s.save(tk)
+	}
 	return nil
 }
 
@@ -88,6 +93,13 @@ func (s *stubRefreshTokenRepo) DeleteByUserAndID(userID, id uint) error {
 func (s *stubRefreshTokenRepo) DeleteByUser(userID uint) error {
 	if s.deleteByUser != nil {
 		return s.deleteByUser(userID)
+	}
+	return nil
+}
+
+func (s *stubRefreshTokenRepo) DeleteByUserAndDevice(userID uint, deviceID string) error {
+	if s.deleteByUserDevice != nil {
+		return s.deleteByUserDevice(userID, deviceID)
 	}
 	return nil
 }
@@ -384,7 +396,8 @@ func TestAuthService_Logout_MissingTokenIsIgnored(t *testing.T) {
 }
 
 func TestAuthService_Logout_DeletesFoundToken(t *testing.T) {
-	var deletedID uint
+	var deletedUserID uint
+	var deletedDeviceID string
 
 	refreshRepo := &stubRefreshTokenRepo{
 		findByUserAndDevice: func(userID uint, deviceID string) (*token.RefreshToken, error) {
@@ -397,8 +410,9 @@ func TestAuthService_Logout_DeletesFoundToken(t *testing.T) {
 				ExpiredAt: time.Now().Add(time.Hour),
 			}, nil
 		},
-		deleteByID: func(id uint) error {
-			deletedID = id
+		deleteByUserDevice: func(userID uint, deviceID string) error {
+			deletedUserID = userID
+			deletedDeviceID = deviceID
 			return nil
 		},
 	}
@@ -418,7 +432,8 @@ func TestAuthService_Logout_DeletesFoundToken(t *testing.T) {
 	err := service.Logout(1, "web")
 
 	assert.NoError(t, err)
-	assert.Equal(t, uint(9), deletedID)
+	assert.Equal(t, uint(1), deletedUserID)
+	assert.Equal(t, "web", deletedDeviceID)
 }
 
 func TestAuthService_Register_IgnoresEmailDeliveryFailure(t *testing.T) {
@@ -591,6 +606,89 @@ func TestAuthService_LogoutAll_RevokesRefreshTokensAndBumpsAccessTokenVersion(t 
 	assert.NoError(t, err)
 	assert.Equal(t, uint(4), updatedVersion)
 	assert.True(t, refreshRevoked)
+}
+
+func TestAuthService_Login_ReplacesExistingDeviceRefreshTokens(t *testing.T) {
+	jwtService := services.NewJWTService([]byte("super_secret_key_123_must_be_32_bytes_long_minimum"))
+	userRepo := &stubUserRepo{
+		findByEmail: func(email string) (*user.User, error) {
+			hashed, err := services.HashPassword("secret123")
+			require.NoError(t, err)
+			return &user.User{
+				Model:              gorm.Model{ID: 5},
+				Email:              email,
+				Password:           hashed,
+				Role:               "user",
+				IsVerified:         true,
+				AccessTokenVersion: 2,
+			}, nil
+		},
+	}
+
+	var deletedDeviceID string
+	var savedToken *token.RefreshToken
+	refreshRepo := &stubRefreshTokenRepo{
+		deleteByUserDevice: func(userID uint, deviceID string) error {
+			assert.Equal(t, uint(5), userID)
+			deletedDeviceID = deviceID
+			return nil
+		},
+		save: func(tk *token.RefreshToken) error {
+			savedToken = tk
+			return nil
+		},
+	}
+
+	service := auth.NewAuthService(
+		nil,
+		userRepo,
+		refreshRepo,
+		&stubEmailVerificationRepo{},
+		&stubSocialRepo{},
+		jwtService,
+		nil,
+		nil,
+		config.SocialConfig{},
+	)
+
+	tokens, err := service.Login("test@mail.com", "secret123", "web", "Browser", "127.0.0.1")
+
+	require.NoError(t, err)
+	require.NotNil(t, tokens)
+	assert.Equal(t, "web", deletedDeviceID)
+	require.NotNil(t, savedToken)
+	assert.Equal(t, "web", savedToken.DeviceID)
+	assert.Equal(t, uint(5), savedToken.UserID)
+}
+
+func TestAuthService_ResendVerification_PropagatesDeleteFailure(t *testing.T) {
+	userRepo := &stubUserRepo{
+		findByEmail: func(email string) (*user.User, error) {
+			return &user.User{Model: gorm.Model{ID: 7}, Email: email}, nil
+		},
+	}
+	emailRepo := &stubEmailVerificationRepo{
+		deleteByUserID: func(userID uint) error {
+			assert.Equal(t, uint(7), userID)
+			return errors.New("delete failed")
+		},
+	}
+
+	service := auth.NewAuthService(
+		nil,
+		userRepo,
+		&stubRefreshTokenRepo{},
+		emailRepo,
+		&stubSocialRepo{},
+		nil,
+		nil,
+		nil,
+		config.SocialConfig{},
+	)
+
+	err := service.ResendVerification("test@mail.com")
+
+	assert.EqualError(t, err, "failed to process verification request")
 }
 
 func TestAuthService_RevokeSession_DeletesOwnedSession(t *testing.T) {

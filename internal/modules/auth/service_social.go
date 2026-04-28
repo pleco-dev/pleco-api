@@ -88,50 +88,54 @@ func (s *authService) SocialLogin(provider string, token string, deviceID, userA
 		profile.Name = profile.Email
 	}
 
-	user, err := s.UserRepo.FindByEmail(profile.Email)
-	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, err
+	var user *userModule.User
+	if err := s.runUserSocialTx(func(userRepo userModule.Repository, socialRepo socialRepositoryTx) error {
+		var err error
+		user, err = userRepo.FindByEmail(profile.Email)
+		if err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+
+			user = &userModule.User{
+				Email:      profile.Email,
+				Name:       profile.Name,
+				Role:       "user",
+				IsVerified: true,
+			}
+
+			if err := userRepo.Create(user); err != nil {
+				return err
+			}
 		}
 
-		user = &userModule.User{
-			Email:      profile.Email,
-			Name:       profile.Name,
-			Role:       "user",
-			IsVerified: true,
+		if user.Role == "" {
+			user.Role = "user"
+			if err := userRepo.Update(user); err != nil {
+				return err
+			}
 		}
 
-		if err := s.UserRepo.Create(user); err != nil {
-			return nil, err
+		social, err := socialRepo.FindByProvider(provider, profile.ProviderUserID)
+		if err != nil {
+			return err
 		}
-	}
 
-	if user.Role == "" {
-		user.Role = "user"
-		if err := s.UserRepo.Update(user); err != nil {
-			return nil, err
+		if social != nil {
+			if social.UserID != user.ID {
+				return errors.New("social account already linked to another user")
+			}
+			return nil
 		}
-	}
 
-	social, err := s.SocialRepo.FindByProvider(provider, profile.ProviderUserID)
-	if err != nil {
-		return nil, err
-	}
-
-	if social != nil {
-		if social.UserID != user.ID {
-			return nil, errors.New("social account already linked to another user")
-		}
-	} else {
-		newSocial := &permissionless.SocialAccount{
+		return socialRepo.Create(&permissionless.SocialAccount{
 			UserID:         user.ID,
 			Provider:       provider,
 			ProviderUserID: profile.ProviderUserID,
 			AvatarURL:      profile.Avatar,
-		}
-		if err := s.SocialRepo.Create(newSocial); err != nil {
-			return nil, err
-		}
+		})
+	}); err != nil {
+		return nil, err
 	}
 
 	tokens, err := s.issueTokens(user.ID, user.Role, user.AccessTokenVersion, deviceID, userAgent, ipAddress)

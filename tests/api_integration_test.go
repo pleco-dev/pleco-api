@@ -57,6 +57,9 @@ func TestAPI_Login_Integration(t *testing.T) {
 
 	// Expect save for refresh token
 	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "refresh_tokens" SET "deleted_at"=\$1 WHERE \(user_id = \$2 AND device_id = \$3\) AND "refresh_tokens"\."deleted_at" IS NULL`).
+		WithArgs(sqlmock.AnyArg(), 1, "test-device").
+		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery(`INSERT INTO "refresh_tokens".*`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 	mock.ExpectCommit()

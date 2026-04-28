@@ -22,8 +22,23 @@ type userRepositoryTx interface {
 }
 
 type refreshTokenRepositoryTx interface {
+	Save(token *tokenModule.RefreshToken) error
 	DeleteByUser(userID uint) error
+	DeleteByUserAndDevice(userID uint, deviceID string) error
 	WithTx(tx *gorm.DB) tokenModule.RefreshTokenRepository
+}
+
+type emailVerificationRepositoryTx interface {
+	Create(token *tokenModule.EmailVerificationToken) error
+	DeleteByID(id uint) error
+	DeleteByUserID(userID uint) error
+	WithTx(tx *gorm.DB) tokenModule.EmailVerificationRepository
+}
+
+type socialRepositoryTx interface {
+	Create(socialAccount *permissionless.SocialAccount) error
+	FindByProvider(provider string, providerID string) (*permissionless.SocialAccount, error)
+	WithTx(tx *gorm.DB) permissionless.Repository
 }
 
 type AuthService interface {
@@ -153,5 +168,25 @@ func (s *authService) runUserRefreshTx(fn func(userRepo userRepositoryTx, refres
 
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		return fn(s.UserRepo.WithTx(tx), s.RefreshTokenRepo.WithTx(tx))
+	})
+}
+
+func (s *authService) runVerificationTx(fn func(userRepo userModule.Repository, emailRepo emailVerificationRepositoryTx) error) error {
+	if s.DB == nil {
+		return fn(s.UserRepo, s.EmailVerificationRepo)
+	}
+
+	return s.DB.Transaction(func(tx *gorm.DB) error {
+		return fn(s.UserRepo.WithTx(tx), s.EmailVerificationRepo.WithTx(tx))
+	})
+}
+
+func (s *authService) runUserSocialTx(fn func(userRepo userModule.Repository, socialRepo socialRepositoryTx) error) error {
+	if s.DB == nil {
+		return fn(s.UserRepo, s.SocialRepo)
+	}
+
+	return s.DB.Transaction(func(tx *gorm.DB) error {
+		return fn(s.UserRepo.WithTx(tx), s.SocialRepo.WithTx(tx))
 	})
 }

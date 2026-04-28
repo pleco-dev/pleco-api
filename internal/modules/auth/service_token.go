@@ -27,7 +27,7 @@ func (s *authService) Logout(userID uint, deviceID string) error {
 		return err
 	}
 
-	if err := s.RefreshTokenRepo.DeleteByID(token.ID); err != nil {
+	if err := s.RefreshTokenRepo.DeleteByUserAndDevice(userID, deviceID); err != nil {
 		return err
 	}
 

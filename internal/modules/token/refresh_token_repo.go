@@ -11,6 +11,7 @@ type RefreshTokenRepository interface {
 	DeleteByID(id uint) error
 	DeleteByUserAndID(userID, id uint) error
 	DeleteByUser(userID uint) error
+	DeleteByUserAndDevice(userID uint, deviceID string) error
 	DeleteByUserExceptDevice(userID uint, deviceID string) error
 	WithTx(tx *gorm.DB) RefreshTokenRepository
 }
@@ -72,6 +73,10 @@ func (r *GormRefreshTokenRepository) DeleteByUserAndID(userID, id uint) error {
 
 func (r *GormRefreshTokenRepository) DeleteByUser(userID uint) error {
 	return r.db.Where("user_id = ?", userID).Delete(&RefreshToken{}).Error
+}
+
+func (r *GormRefreshTokenRepository) DeleteByUserAndDevice(userID uint, deviceID string) error {
+	return r.db.Where("user_id = ? AND device_id = ?", userID, deviceID).Delete(&RefreshToken{}).Error
 }
 
 func (r *GormRefreshTokenRepository) DeleteByUserExceptDevice(userID uint, deviceID string) error {

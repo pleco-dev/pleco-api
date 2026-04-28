@@ -53,9 +53,16 @@ func (s *emailService) SendVerificationEmail(toEmail, token string) error {
 	message := mail.NewSingleEmail(from, subject, to, plainText, htmlContent)
 
 	client := sendgrid.NewSendClient(s.apiKey)
-	_, err := client.Send(message)
+	response, err := client.Send(message)
+	if err != nil {
+		return err
+	}
 
-	return err
+	if response != nil && response.StatusCode >= 400 {
+		return fmt.Errorf("failed to send email: status=%d, body=%s", response.StatusCode, response.Body)
+	}
+
+	return nil
 }
 
 func (s *emailService) SendPasswordReset(toEmail string, token string) error {

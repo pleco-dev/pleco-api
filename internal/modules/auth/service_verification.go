@@ -7,6 +7,7 @@ import (
 
 	"pleco-api/internal/modules/audit"
 	tokenModule "pleco-api/internal/modules/token"
+	userModule "pleco-api/internal/modules/user"
 	"pleco-api/internal/utils"
 
 	"github.com/google/uuid"
@@ -27,15 +28,18 @@ func (s *authService) ResendVerification(email string) error {
 	}
 
 	token := uuid.NewString()
-	_ = s.EmailVerificationRepo.DeleteByUserID(user.ID)
-
 	verification := &tokenModule.EmailVerificationToken{
 		UserID:    user.ID,
 		Token:     utils.HashToken(token),
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	}
 
-	if err := s.EmailVerificationRepo.Create(verification); err != nil {
+	if err := s.runVerificationTx(func(_ userModule.Repository, emailRepo emailVerificationRepositoryTx) error {
+		if err := emailRepo.DeleteByUserID(user.ID); err != nil {
+			return err
+		}
+		return emailRepo.Create(verification)
+	}); err != nil {
 		return errors.New("failed to process verification request")
 	}
 
@@ -76,11 +80,14 @@ func (s *authService) VerifyEmail(token string) error {
 	}
 
 	user.IsVerified = true
-	if err := s.UserRepo.Update(user); err != nil {
+	if err := s.runVerificationTx(func(userRepo userModule.Repository, emailRepo emailVerificationRepositoryTx) error {
+		if err := userRepo.Update(user); err != nil {
+			return err
+		}
+		return emailRepo.DeleteByID(verification.ID)
+	}); err != nil {
 		return err
 	}
-
-	_ = s.EmailVerificationRepo.DeleteByID(verification.ID)
 
 	s.AuditSvc.SafeRecord(audit.RecordInput{
 		ActorUserID: &user.ID,

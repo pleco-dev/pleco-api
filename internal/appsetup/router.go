@@ -17,7 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtService *services.JWTService) error {
+func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtService *services.JWTService, rateStore middleware.RateLimitStore) error {
 	api := router.Group("/")
 	aiService, err := ai.NewService(cfg.AI)
 	if err != nil {
@@ -29,7 +29,6 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtSe
 	userModule := user.BuildModule(db, auditModule.Service)
 	authModule := auth.BuildModule(db, cfg, userModule.Service, jwtService, auditModule.Service, permissionModule.Service)
 
-	rateStore := newRateLimitStore(cfg.RedisURL)
 	tokenVersionSrc := accessTokenVersionAdapter{repo: userModule.Repository}
 	auth.SetupRoutes(api, authModule.Handler, jwtService, rateStore, tokenVersionSrc)
 	user.SetupRoutes(api, userModule.Handler, jwtService, permissionModule.Service, tokenVersionSrc)
@@ -60,7 +59,7 @@ func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtSe
 	return nil
 }
 
-func BuildRouter(db *gorm.DB, cfg config.AppConfig, jwtService *services.JWTService) (*gin.Engine, error) {
+func BuildRouter(db *gorm.DB, cfg config.AppConfig, jwtService *services.JWTService, rateStore middleware.RateLimitStore) (*gin.Engine, error) {
 	router := gin.New()
 	if err := router.SetTrustedProxies(cfg.TrustedProxies); err != nil {
 		return nil, err
@@ -70,7 +69,7 @@ func BuildRouter(db *gorm.DB, cfg config.AppConfig, jwtService *services.JWTServ
 	router.Use(middleware.StructuredLogger())
 	router.Use(middleware.RecoveryLogger())
 	router.Use(middleware.SecurityHeaders())
-	if err := RegisterRoutes(router, db, cfg, jwtService); err != nil {
+	if err := RegisterRoutes(router, db, cfg, jwtService, rateStore); err != nil {
 		return nil, err
 	}
 	return router, nil

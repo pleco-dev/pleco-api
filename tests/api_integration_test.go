@@ -38,7 +38,7 @@ func TestAPI_Login_Integration(t *testing.T) {
 	jwtService := services.NewJWTService(cfg.JWTSecret)
 
 	// Build Router
-	router, err := appsetup.BuildRouter(db, cfg, jwtService)
+	router, err := appsetup.BuildRouter(db, cfg, jwtService, nil)
 	require.NoError(t, err)
 
 	// Define Test Data

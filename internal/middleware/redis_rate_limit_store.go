@@ -45,3 +45,10 @@ func (s *RedisRateLimitStore) Allow(key string, limit int, window time.Duration,
 
 	return int(count) <= limit, expiresAt
 }
+
+func (s *RedisRateLimitStore) Close() error {
+	if s == nil || s.rdb == nil {
+		return nil
+	}
+	return s.rdb.Close()
+}

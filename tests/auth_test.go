@@ -993,7 +993,7 @@ func TestBuildRouter_RejectsInvalidTrustedProxy(t *testing.T) {
 		JWTSecret:      []byte("super_secret_key_123_must_be_32_bytes_long_minimum"),
 	}
 
-	router, err := appsetup.BuildRouter(nil, cfg, services.NewJWTService([]byte("super_secret_key_123_must_be_32_bytes_long_minimum")))
+	router, err := appsetup.BuildRouter(nil, cfg, services.NewJWTService([]byte("super_secret_key_123_must_be_32_bytes_long_minimum")), nil)
 
 	assert.Nil(t, router)
 	assert.Error(t, err)

@@ -12,6 +12,29 @@ jobs:
   ci:
     name: Build & Test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: auth_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d auth_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:password@localhost:5432/auth_db?sslmode=disable
+      JWT_SECRET: super_secret_key_123_must_be_32_bytes_long_minimum
+      AUTO_RUN_MIGRATIONS: "true"
+      AUTO_RUN_SEEDS: "true"
+      ADMIN_EMAIL: admin@mail.com
+      ADMIN_PASSWORD: admin123
+      AI_ENABLED: "false"
+      PORT: "8080"
 
     steps:
       - name: Checkout
@@ -22,6 +45,12 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
 
       - name: Download dependencies
         run: go mod download
@@ -47,4 +76,31 @@ jobs:
 
       - name: Run tests (with race detector)
         run: go test -race -count=1 ./...
+
+      - name: Install Newman dependencies
+        run: npm ci
+
+      - name: Start API server
+        run: |
+          nohup go run ./cmd/api > /tmp/pleco-api.log 2>&1 &
+
+      - name: Wait for API health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/health > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become healthy in time"
+          exit 1
+
+      - name: Run Newman smoke and negative suites
+        run: npm run postman:all
+
+      - name: Show API logs on failure
+        if: failure()
+        run: |
+          echo "===== /tmp/pleco-api.log ====="
+          cat /tmp/pleco-api.log
   

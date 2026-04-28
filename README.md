@@ -880,6 +880,22 @@ For the full manual collection, including flows that need verification/reset tok
 npm run postman:manual
 ```
 
+Run the negative test suite for validation/authz/error handling:
+
+```bash
+npm run postman:negative
+# or
+make postman-negative
+```
+
+Run both positive smoke checks and negative checks in one command:
+
+```bash
+npm run postman:all
+# or
+make postman-all
+```
+
 ---
 
 ## Makefile Reference

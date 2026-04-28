@@ -3,7 +3,9 @@
   "private": true,
   "scripts": {
     "postman:local": "newman run postman/pleco.smoke.postman_collection.json --environment postman/pleco.local.postman_environment.json",
-    "postman:manual": "newman run postman/pleco.postman_collection.json --environment postman/pleco.local.postman_environment.json"
+    "postman:manual": "newman run postman/pleco.postman_collection.json --environment postman/pleco.local.postman_environment.json",
+    "postman:negative": "newman run postman/pleco.negative.postman_collection.json --environment postman/pleco.local.postman_environment.json",
+    "postman:all": "npm run postman:local && npm run postman:negative"
   },
   "devDependencies": {
     "newman": "^6.1.3"

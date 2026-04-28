@@ -38,8 +38,12 @@ func RunAPI(registerDocs func(*gin.Engine)) error {
 	}
 
 	srv := &http.Server{
-		Addr:    ":" + appConfig.Port,
-		Handler: router,
+		Addr:              ":" + appConfig.Port,
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	shutdownCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

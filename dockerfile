@@ -5,7 +5,8 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN go build -o app ./cmd/api
+# Restrict build memory to prevent "signal: killed" OOM errors in Docker
+RUN CGO_ENABLED=0 GOMAXPROCS=1 go build -p 1 -o app ./cmd/api
 
 # final image
 FROM alpine:latest

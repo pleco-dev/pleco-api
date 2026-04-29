@@ -75,6 +75,21 @@ func SeedRolePermissions(db *gorm.DB) {
 	roleMap := SeedRoles(db)
 
 	rolePermissions := map[string][]string{
+		"superadmin": {
+			"dashboard.view",
+			"user.read_all",
+			"user.read",
+			"user.create",
+			"user.update",
+			"user.delete",
+			"audit.read",
+			"audit.investigate",
+			"role.read",
+			"permission.read",
+			"role.update_permissions",
+			"session.read",
+			"session.delete",
+		},
 		"admin": {
 			"dashboard.view",
 			"user.read_all",

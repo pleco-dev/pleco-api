@@ -26,40 +26,40 @@ type EmailService interface {
 }
 
 type emailService struct {
-	provider    string
-	apiKey      string
-	apiBaseURL  string
-	from        string
-	fromName    string
-	replyTo     string
-	appBaseURL  string
-	frontendURL string
-	httpClient  *http.Client
-	smtpHost    string
-	smtpPort    int
+	provider     string
+	apiKey       string
+	apiBaseURL   string
+	from         string
+	fromName     string
+	replyTo      string
+	appBaseURL   string
+	frontendURL  string
+	httpClient   *http.Client
+	smtpHost     string
+	smtpPort     int
 	smtpUsername string
 	smtpPassword string
-	smtpMode    string
+	smtpMode     string
 }
 
 var _ EmailService = (*emailService)(nil)
 
 func NewEmailService(cfg config.EmailConfig) EmailService {
 	return &emailService{
-		provider:    strings.ToLower(strings.TrimSpace(cfg.Provider)),
-		apiKey:      cfg.APIKey,
-		apiBaseURL:  cfg.APIBaseURL,
-		from:        cfg.From,
-		fromName:    firstNonEmpty(cfg.FromName, "Go App"),
-		replyTo:     cfg.ReplyTo,
-		appBaseURL:  firstNonEmpty(cfg.AppBaseURL, "http://localhost:8080"),
-		frontendURL: cfg.FrontendURL,
-		httpClient:  &http.Client{Timeout: time.Duration(cfg.TimeoutSeconds) * time.Second},
-		smtpHost:    cfg.SMTPHost,
-		smtpPort:    cfg.SMTPPort,
+		provider:     strings.ToLower(strings.TrimSpace(cfg.Provider)),
+		apiKey:       cfg.APIKey,
+		apiBaseURL:   cfg.APIBaseURL,
+		from:         cfg.From,
+		fromName:     firstNonEmpty(cfg.FromName, "Go App"),
+		replyTo:      cfg.ReplyTo,
+		appBaseURL:   firstNonEmpty(cfg.AppBaseURL, "http://localhost:8080"),
+		frontendURL:  cfg.FrontendURL,
+		httpClient:   &http.Client{Timeout: time.Duration(cfg.TimeoutSeconds) * time.Second},
+		smtpHost:     cfg.SMTPHost,
+		smtpPort:     cfg.SMTPPort,
 		smtpUsername: cfg.SMTPUsername,
 		smtpPassword: cfg.SMTPPassword,
-		smtpMode:    strings.ToLower(strings.TrimSpace(cfg.SMTPMode)),
+		smtpMode:     strings.ToLower(strings.TrimSpace(cfg.SMTPMode)),
 	}
 }
 

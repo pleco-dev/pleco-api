@@ -7,20 +7,20 @@ import (
 )
 
 type EmailConfig struct {
-	Provider    string
-	APIKey      string
-	APIBaseURL  string
-	From        string
-	FromName    string
-	ReplyTo     string
+	Provider       string
+	APIKey         string
+	APIBaseURL     string
+	From           string
+	FromName       string
+	ReplyTo        string
 	TimeoutSeconds int
-	SMTPHost    string
-	SMTPPort    int
-	SMTPUsername string
-	SMTPPassword string
-	SMTPMode    string
-	AppBaseURL  string
-	FrontendURL string
+	SMTPHost       string
+	SMTPPort       int
+	SMTPUsername   string
+	SMTPPassword   string
+	SMTPMode       string
+	AppBaseURL     string
+	FrontendURL    string
 }
 
 type SocialConfig struct {
@@ -68,20 +68,20 @@ func LoadAppConfig() AppConfig {
 		AutoRunMigrations:  envBool("AUTO_RUN_MIGRATIONS"),
 		AutoRunSeeds:       envBool("AUTO_RUN_SEEDS"),
 		Email: EmailConfig{
-			Provider:    strings.ToLower(GetEnv("EMAIL_PROVIDER", "disabled")),
-			APIKey:      GetEnv("EMAIL_API_KEY", ""),
-			APIBaseURL:  GetEnv("EMAIL_API_BASE_URL", ""),
-			From:        GetEnv("EMAIL_FROM", ""),
-			FromName:    GetEnv("EMAIL_FROM_NAME", "Go App"),
-			ReplyTo:     GetEnv("EMAIL_REPLY_TO", ""),
+			Provider:       strings.ToLower(GetEnv("EMAIL_PROVIDER", "disabled")),
+			APIKey:         GetEnv("EMAIL_API_KEY", ""),
+			APIBaseURL:     GetEnv("EMAIL_API_BASE_URL", ""),
+			From:           GetEnv("EMAIL_FROM", ""),
+			FromName:       GetEnv("EMAIL_FROM_NAME", "Go App"),
+			ReplyTo:        GetEnv("EMAIL_REPLY_TO", ""),
 			TimeoutSeconds: envInt("EMAIL_TIMEOUT_SECONDS", 15),
-			SMTPHost:    GetEnv("EMAIL_SMTP_HOST", ""),
-			SMTPPort:    envInt("EMAIL_SMTP_PORT", 587),
-			SMTPUsername: GetEnv("EMAIL_SMTP_USERNAME", ""),
-			SMTPPassword: GetEnv("EMAIL_SMTP_PASSWORD", ""),
-			SMTPMode:    strings.ToLower(GetEnv("EMAIL_SMTP_MODE", "starttls")),
-			AppBaseURL:  firstNonEmptyEnv("APP_BASE_URL", "RENDER_EXTERNAL_URL", "http://localhost:8080"),
-			FrontendURL: GetEnv("FRONTEND_URL", ""),
+			SMTPHost:       GetEnv("EMAIL_SMTP_HOST", ""),
+			SMTPPort:       envInt("EMAIL_SMTP_PORT", 587),
+			SMTPUsername:   GetEnv("EMAIL_SMTP_USERNAME", ""),
+			SMTPPassword:   GetEnv("EMAIL_SMTP_PASSWORD", ""),
+			SMTPMode:       strings.ToLower(GetEnv("EMAIL_SMTP_MODE", "starttls")),
+			AppBaseURL:     firstNonEmptyEnv("APP_BASE_URL", "RENDER_EXTERNAL_URL", "http://localhost:8080"),
+			FrontendURL:    GetEnv("FRONTEND_URL", ""),
 		},
 		Social: SocialConfig{
 			GoogleClientID:    GetEnv("GOOGLE_CLIENT_ID", ""),
@@ -251,7 +251,6 @@ func firstNonEmptyEnv(keys ...string) string {
 	}
 	return last
 }
-
 
 func corsAllowedOrigins() []string {
 	defaults := []string{

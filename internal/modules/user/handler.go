@@ -167,8 +167,14 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	if err := h.UserService.DeleteUser(uint(id64)); err != nil {
-		httpx.Error(c, 500, "Failed")
+	callerRoleValue, _ := c.Get("role")
+	callerRole, _ := callerRoleValue.(string)
+
+	callerIDValue, _ := c.Get("user_id")
+	callerID, _ := callerIDValue.(uint)
+
+	if err := h.UserService.DeleteUser(uint(id64), callerRole, callerID); err != nil {
+		httpx.Error(c, 400, err.Error())
 		return
 	}
 

@@ -152,7 +152,24 @@ func (s *Service) ChangePassword(id uint, currentPassword, newPassword string) e
 	})
 }
 
-func (s *Service) DeleteUser(id uint) error {
+func (s *Service) DeleteUser(id uint, callerRole string, callerID uint) error {
+	if id == callerID {
+		return errors.New("cannot delete yourself")
+	}
+
+	targetUser, err := s.UserRepo.FindByID(id)
+	if err != nil {
+		return err
+	}
+
+	if callerRole == "admin" && targetUser.Role != "user" {
+		return errors.New("admin can only delete standard users")
+	}
+
+	if targetUser.Role == "superadmin" {
+		return errors.New("cannot delete superadmin")
+	}
+
 	return s.UserRepo.Delete(id)
 }
 

@@ -1,4 +1,7 @@
-FROM golang:1.25-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
+
+ARG TARGETOS
+ARG TARGETARCH
 
 WORKDIR /app
 COPY go.mod go.sum ./
@@ -6,16 +9,16 @@ RUN go mod download
 
 COPY . .
 # Restrict build memory to prevent "signal: killed" OOM errors in Docker
-RUN CGO_ENABLED=0 GOMAXPROCS=1 go build -p 1 -o app ./cmd/api
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOMAXPROCS=1 go build -p 1 -o app ./cmd/api
 
 # final image
 FROM alpine:latest
 
-RUN apk add --no-cache ca-certificates wget \
-	&& addgroup -S appgroup \
+RUN addgroup -S appgroup \
 	&& adduser -S appuser -G appgroup
 
 WORKDIR /app
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /app/app .
 
 EXPOSE 8080

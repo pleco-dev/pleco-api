@@ -1066,17 +1066,19 @@ Pleco includes optional monitoring with AI-powered error analysis capabilities.
 
 Monitor errors with Sentry or Datadog. It automatically captures 5xx errors and supports standard metrics.
 
-```bash
+```env
 # Using Sentry
-export MONITORING_PROVIDER=sentry
-export SENTRY_DSN=https://key@sentry.io/project
-go run ./cmd/api
+MONITORING_PROVIDER=sentry
+SENTRY_DSN=https://key@sentry.io/project
+```
+
+```env
+# Using Datadog
+MONITORING_PROVIDER=datadog
+DATADOG_API_KEY=your_key
 ```
 
 ```bash
-# Using Datadog
-export MONITORING_PROVIDER=datadog
-export DATADOG_API_KEY=your_key
 go run ./cmd/api
 ```
 
@@ -1084,12 +1086,12 @@ go run ./cmd/api
 
 When enabled, AI analyzes error patterns, stores root causes in the database, and samples errors to save AI provider costs (analyzing 1 in N errors).
 
-```bash
-export MONITORING_PROVIDER=sentry
-export SENTRY_DSN=...
-export AI_MONITORING_ENABLED=true
-export AI_MONITORING_ERROR_THRESHOLD=5
-export AI_PROVIDER=ollama
-export AI_MODEL=qwen2.5:3b
-export AI_BASE_URL=http://localhost:11434
+```env
+MONITORING_PROVIDER=sentry
+SENTRY_DSN=...
+AI_MONITORING_ENABLED=true
+AI_MONITORING_ERROR_THRESHOLD=5
+AI_PROVIDER=ollama
+AI_MODEL=qwen2.5:3b
+AI_BASE_URL=http://localhost:11434
 ```

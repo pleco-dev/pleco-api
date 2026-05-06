@@ -20,7 +20,7 @@ func NewRepository(db *gorm.DB) Repository {
 
 func (r *GormRepository) FindByID(id uint) (*Role, error) {
 	var role Role
-	if err := r.db.First(&role, id).Error; err != nil {
+	if err := r.db.Preload("RolePermissions").First(&role, id).Error; err != nil {
 		return nil, err
 	}
 
@@ -29,7 +29,7 @@ func (r *GormRepository) FindByID(id uint) (*Role, error) {
 
 func (r *GormRepository) FindAll() ([]Role, error) {
 	var roles []Role
-	if err := r.db.Order("id ASC").Find(&roles).Error; err != nil {
+	if err := r.db.Preload("RolePermissions").Order("id ASC").Find(&roles).Error; err != nil {
 		return nil, err
 	}
 

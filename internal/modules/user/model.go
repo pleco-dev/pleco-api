@@ -3,6 +3,8 @@ package user
 import (
 	"time"
 
+	roleModule "pleco-api/internal/modules/role"
+
 	"gorm.io/gorm"
 )
 
@@ -13,6 +15,7 @@ type User struct {
 	Password           string `json:"-"`
 	Role               string `json:"role"` // user / admin
 	RoleID             uint   `json:"role_id"`
+	RoleDetails        roleModule.Role `gorm:"foreignKey:RoleID" json:"role_details,omitempty"`
 	IsVerified         bool   `json:"is_verified"`
 	PasswordUpdatedAt  time.Time
 	AccessTokenVersion uint `gorm:"default:0" json:"-"`

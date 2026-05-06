@@ -38,7 +38,7 @@ func (r *GormRepository) FindByEmail(email string) (*User, error) {
 
 func (r *GormRepository) FindByID(id uint) (*User, error) {
 	var user User
-	err := r.db.First(&user, id).Error
+	err := r.db.Preload("RoleDetails").First(&user, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (r *GormRepository) Update(user *User) error {
 
 func (r *GormRepository) FindAll() ([]User, error) {
 	var users []User
-	err := r.db.Find(&users).Error
+	err := r.db.Preload("RoleDetails").Find(&users).Error
 	return users, err
 }
 
@@ -94,7 +94,7 @@ func (r *GormRepository) FindAllWithFilter(page, limit int, search, role string)
 	}
 
 	offset := (page - 1) * limit
-	err := query.Limit(limit).Offset(offset).Find(&users).Error
+	err := query.Preload("RoleDetails").Limit(limit).Offset(offset).Find(&users).Error
 
 	return users, total, err
 }

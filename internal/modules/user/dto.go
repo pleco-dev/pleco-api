@@ -1,11 +1,18 @@
 package user
 
 type UserResponse struct {
-	ID         uint   `json:"id"`
-	Name       string `json:"name"`
-	Email      string `json:"email"`
-	Role       string `json:"role"`
-	IsVerified bool   `json:"is_verified"`
+	ID          uint                 `json:"id"`
+	Name        string               `json:"name"`
+	Email       string               `json:"email"`
+	Role        string               `json:"role"`
+	RoleID      uint                 `json:"role_id"`
+	RoleDetails *RoleDetailsResponse `json:"role_details,omitempty"`
+	IsVerified  bool                 `json:"is_verified"`
+}
+
+type RoleDetailsResponse struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
 }
 
 type UserPermissionsResponse struct {
@@ -39,13 +46,21 @@ type ChangePasswordRequest struct {
 }
 
 func ToUserResponse(user User) UserResponse {
-	return UserResponse{
+	response := UserResponse{
 		ID:         user.ID,
 		Name:       user.Name,
 		Email:      user.Email,
 		Role:       user.Role,
+		RoleID:     user.RoleID,
 		IsVerified: user.IsVerified,
 	}
+	if user.RoleDetails.ID != 0 {
+		response.RoleDetails = &RoleDetailsResponse{
+			ID:   user.RoleDetails.ID,
+			Name: user.RoleDetails.Name,
+		}
+	}
+	return response
 }
 
 func ToUserResponseList(users []User) []UserResponse {

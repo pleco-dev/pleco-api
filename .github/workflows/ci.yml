@@ -102,5 +102,9 @@ jobs:
         if: failure()
         run: |
           echo "===== /tmp/pleco-api.log ====="
-          cat /tmp/pleco-api.log
+          if [ -f /tmp/pleco-api.log ]; then
+            cat /tmp/pleco-api.log
+          else
+            echo "No API log file found at /tmp/pleco-api.log"
+          fi
   

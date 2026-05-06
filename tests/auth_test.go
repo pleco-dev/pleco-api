@@ -390,7 +390,7 @@ func TestAuthService_Logout_MissingTokenIsIgnored(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		config.SocialConfig{},
+		config.AppConfig{},
 	)
 
 	err := service.Logout(1, "web")
@@ -429,7 +429,7 @@ func TestAuthService_Logout_DeletesFoundToken(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		config.SocialConfig{},
+		config.AppConfig{},
 	)
 
 	err := service.Logout(1, "web")
@@ -483,7 +483,7 @@ func TestAuthService_Register_IgnoresEmailDeliveryFailure(t *testing.T) {
 		services.NewJWTService([]byte("super_secret_key_123_must_be_32_bytes_long_minimum")),
 		emailSvc,
 		nil,
-		config.SocialConfig{},
+		config.AppConfig{},
 	)
 
 	err = service.Register(&user.User{
@@ -531,7 +531,7 @@ func TestAuthService_ListSessions_MarksCurrentDevice(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		config.SocialConfig{},
+		config.AppConfig{},
 	)
 
 	sessions, err := service.ListSessions(7, "web")
@@ -582,7 +582,7 @@ func TestAuthService_LogoutOtherSessions(t *testing.T) {
 		jwtService,
 		nil,
 		nil,
-		config.SocialConfig{},
+		config.AppConfig{},
 	)
 
 	tokens, err := service.LogoutOtherSessions(9, "web", "Browser", "127.0.0.1")
@@ -624,7 +624,7 @@ func TestAuthService_LogoutAll_RevokesRefreshTokensAndBumpsAccessTokenVersion(t 
 		nil,
 		nil,
 		nil,
-		config.SocialConfig{},
+		config.AppConfig{},
 	)
 
 	err := service.LogoutAll(9, "Browser", "127.0.0.1")
@@ -674,7 +674,7 @@ func TestAuthService_Login_ReplacesExistingDeviceRefreshTokens(t *testing.T) {
 		jwtService,
 		nil,
 		nil,
-		config.SocialConfig{},
+		config.AppConfig{},
 	)
 
 	tokens, err := service.Login("test@mail.com", "secret123", "web", "Browser", "127.0.0.1")
@@ -709,7 +709,7 @@ func TestAuthService_ResendVerification_PropagatesDeleteFailure(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		config.SocialConfig{},
+		config.AppConfig{},
 	)
 
 	err := service.ResendVerification("test@mail.com")
@@ -745,7 +745,7 @@ func TestAuthService_RevokeSession_DeletesOwnedSession(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		config.SocialConfig{},
+		config.AppConfig{},
 	)
 
 	err := service.RevokeSession(11, 4, "Browser", "127.0.0.1")
@@ -773,7 +773,7 @@ func TestAuthService_RevokeSession_RejectsForeignSession(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		config.SocialConfig{},
+		config.AppConfig{},
 	)
 
 	err := service.RevokeSession(11, 4, "Browser", "127.0.0.1")
@@ -881,7 +881,7 @@ func TestResetPassword_RevokesRefreshTokensAndBumpsAccessTokenVersion(t *testing
 		jwtService,
 		nil,
 		nil,
-		config.SocialConfig{},
+		config.AppConfig{},
 	)
 
 	err = service.ResetPassword(resetToken, "newSecret123")

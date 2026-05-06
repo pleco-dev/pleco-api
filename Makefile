@@ -73,7 +73,11 @@ docker-up: ## Start the Docker stack with build using DOCKER_ENV_FILE=<file>
 	docker-compose --env-file $(DOCKER_ENV_FILE) up --build
 
 docker-down: ## Stop the Docker stack using DOCKER_ENV_FILE=<file>
-	docker-compose --env-file $(DOCKER_ENV_FILE) down
+	@if [ -z "$$(docker-compose --env-file $(DOCKER_ENV_FILE) ps -a -q)" ]; then \
+		echo "ℹ️  No containers are currently running for this stack."; \
+	else \
+		docker-compose --env-file $(DOCKER_ENV_FILE) down; \
+	fi
 
 docker-logs: ## Follow Docker logs using DOCKER_ENV_FILE=<file>
 	docker-compose --env-file $(DOCKER_ENV_FILE) logs -f

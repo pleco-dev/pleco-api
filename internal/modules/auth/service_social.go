@@ -174,7 +174,7 @@ func (s *authService) resolveSocialProfile(provider string, token string) (*soci
 		return nil, normalizedProvider, errors.New("social token required")
 	}
 
-	providerCfg, active := s.SocialCfg.Providers[normalizedProvider]
+	providerCfg, active := s.Cfg.Social.Providers[normalizedProvider]
 	if !active {
 		return nil, normalizedProvider, fmt.Errorf("%s social login is not enabled", normalizedProvider)
 	}

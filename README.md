@@ -152,6 +152,7 @@ DATABASE_URL=postgresql://postgres:password@localhost:5432/auth_db?sslmode=disab
 TRUSTED_PROXIES=127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 JWT_SECRET=replace-with-a-strong-secret
+ACCESS_TOKEN_EXPIRY_MINUTES=15
 APP_BASE_URL=http://localhost:8080
 FRONTEND_URL=http://localhost:3000
 ADMIN_EMAIL=admin@example.com

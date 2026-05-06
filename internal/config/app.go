@@ -43,33 +43,35 @@ type AIConfig struct {
 }
 
 type AppConfig struct {
-	Port               string
-	DatabaseURL        string
-	RedisURL           string
-	TrustedProxies     []string
-	CORSAllowedOrigins []string
-	JWTSecret          []byte
-	AdminEmail         string
-	AdminPassword      string
-	AutoRunMigrations  bool
-	AutoRunSeeds       bool
-	Email              EmailConfig
-	Social             SocialConfig
-	AI                 AIConfig
+	Port                     string
+	DatabaseURL              string
+	RedisURL                 string
+	TrustedProxies           []string
+	CORSAllowedOrigins       []string
+	JWTSecret                []byte
+	AccessTokenExpiryMinutes int
+	AdminEmail               string
+	AdminPassword            string
+	AutoRunMigrations        bool
+	AutoRunSeeds             bool
+	Email                    EmailConfig
+	Social                   SocialConfig
+	AI                       AIConfig
 }
 
 func LoadAppConfig() AppConfig {
 	return AppConfig{
-		Port:               GetEnv("PORT", "8080"),
-		DatabaseURL:        GetEnv("DATABASE_URL", ""),
-		RedisURL:           GetEnv("REDIS_URL", ""),
-		TrustedProxies:     envList("TRUSTED_PROXIES", []string{"127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}),
-		CORSAllowedOrigins: corsAllowedOrigins(),
-		JWTSecret:          []byte(GetEnv("JWT_SECRET", "")),
-		AdminEmail:         GetEnv("ADMIN_EMAIL", ""),
-		AdminPassword:      GetEnv("ADMIN_PASSWORD", ""),
-		AutoRunMigrations:  envBool("AUTO_RUN_MIGRATIONS"),
-		AutoRunSeeds:       envBool("AUTO_RUN_SEEDS"),
+		Port:                     GetEnv("PORT", "8080"),
+		DatabaseURL:              GetEnv("DATABASE_URL", ""),
+		RedisURL:                 GetEnv("REDIS_URL", ""),
+		TrustedProxies:           envList("TRUSTED_PROXIES", []string{"127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}),
+		CORSAllowedOrigins:       corsAllowedOrigins(),
+		JWTSecret:                []byte(GetEnv("JWT_SECRET", "")),
+		AccessTokenExpiryMinutes: envInt("ACCESS_TOKEN_EXPIRY_MINUTES", 15),
+		AdminEmail:               GetEnv("ADMIN_EMAIL", ""),
+		AdminPassword:            GetEnv("ADMIN_PASSWORD", ""),
+		AutoRunMigrations:        envBool("AUTO_RUN_MIGRATIONS"),
+		AutoRunSeeds:             envBool("AUTO_RUN_SEEDS"),
 		Email: EmailConfig{
 			Provider:       strings.ToLower(GetEnv("EMAIL_PROVIDER", "disabled")),
 			APIKey:         GetEnv("EMAIL_API_KEY", ""),

@@ -129,7 +129,12 @@ func (s *authService) GetProfile(userID uint) (*userModule.User, error) {
 }
 
 func (s *authService) issueTokens(userID uint, role string, accessTokenVersion uint, deviceID, userAgent, ipAddress string) (*AuthTokens, error) {
-	accessToken, err := s.JWT.GenerateToken(userID, role, 10*time.Minute, TokenAccess, accessTokenVersion)
+	expiry := time.Duration(s.Cfg.AccessTokenExpiryMinutes) * time.Minute
+	if expiry == 0 {
+		expiry = 15 * time.Minute // default fallback
+	}
+
+	accessToken, err := s.JWT.GenerateToken(userID, role, expiry, TokenAccess, accessTokenVersion)
 	if err != nil {
 		return nil, err
 	}

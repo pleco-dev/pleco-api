@@ -73,7 +73,7 @@ type authService struct {
 	JWT                   *services.JWTService
 	EmailSvc              services.EmailService
 	AuditSvc              *audit.Service
-	SocialCfg             config.SocialConfig
+	Cfg                   config.AppConfig
 	Cache                 cache.Store
 	socialHTTPClient      *http.Client
 	appleKeysCache        *appleJWKSet
@@ -130,7 +130,7 @@ func NewService(db *gorm.DB, cfg config.AppConfig, _ *userModule.Service, jwtSer
 		jwtService,
 		emailSvc,
 		auditSvc,
-		cfg.Social,
+		cfg,
 	)
 }
 
@@ -143,7 +143,7 @@ func NewAuthService(
 	jwt *services.JWTService,
 	emailSvc services.EmailService,
 	auditSvc *audit.Service,
-	socialCfg config.SocialConfig,
+	cfg config.AppConfig,
 	opts ...AuthServiceOption,
 ) AuthService {
 	s := &authService{
@@ -155,7 +155,7 @@ func NewAuthService(
 		JWT:                   jwt,
 		EmailSvc:              emailSvc,
 		AuditSvc:              auditSvc,
-		SocialCfg:             socialCfg,
+		Cfg:                   cfg,
 	}
 	for _, opt := range opts {
 		if opt != nil {

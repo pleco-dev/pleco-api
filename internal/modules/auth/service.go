@@ -1,10 +1,13 @@
 package auth
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
+	"pleco-api/internal/cache"
 	"pleco-api/internal/config"
 	"pleco-api/internal/modules/audit"
 	permissionless "pleco-api/internal/modules/social"
@@ -39,6 +42,7 @@ type emailVerificationRepositoryTx interface {
 type socialRepositoryTx interface {
 	Create(socialAccount *permissionless.SocialAccount) error
 	FindByProvider(provider string, providerID string) (*permissionless.SocialAccount, error)
+	FindByUserAndProvider(userID uint, provider string) (*permissionless.SocialAccount, error)
 	WithTx(tx *gorm.DB) permissionless.Repository
 }
 
@@ -57,6 +61,7 @@ type AuthService interface {
 	ForgotPassword(email string) error
 	ResetPassword(token string, newPassword string) error
 	SocialLogin(provider string, idToken string, deviceID, userAgent, ipAddress string) (*AuthTokens, error)
+	GetSocialAccount(userID uint, provider string) (*permissionless.SocialAccount, error)
 }
 
 type authService struct {
@@ -69,6 +74,7 @@ type authService struct {
 	EmailSvc              services.EmailService
 	AuditSvc              *audit.Service
 	SocialCfg             config.SocialConfig
+	Cache                 cache.Store
 	socialHTTPClient      *http.Client
 	appleKeysCache        *appleJWKSet
 	appleKeysCacheTime    time.Time
@@ -190,4 +196,23 @@ func (s *authService) runUserSocialTx(fn func(userRepo userModule.Repository, so
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 		return fn(s.UserRepo.WithTx(tx), s.SocialRepo.WithTx(tx))
 	})
+}
+
+func (s *authService) invalidateUserCache(userID uint) {
+	if s.Cache == nil {
+		return
+	}
+	_ = s.Cache.Delete(
+		context.Background(),
+		fmt.Sprintf("user:detail:%d", userID),
+		fmt.Sprintf("user:profile:%d", userID),
+		fmt.Sprintf("user:permissions:%d", userID),
+	)
+}
+
+func (s *authService) invalidateSocialAccountCache(userID uint, provider string) {
+	if s.Cache == nil {
+		return
+	}
+	_ = s.Cache.Delete(context.Background(), fmt.Sprintf("social:account:%d:%s", userID, provider))
 }

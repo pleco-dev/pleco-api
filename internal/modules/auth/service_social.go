@@ -138,6 +138,7 @@ func (s *authService) SocialLogin(provider string, token string, deviceID, userA
 	}); err != nil {
 		return nil, err
 	}
+	s.invalidateSocialAccountCache(user.ID, provider)
 
 	tokens, err := s.issueTokens(user.ID, user.Role, user.AccessTokenVersion, deviceID, userAgent, ipAddress)
 	if err != nil {
@@ -156,6 +157,14 @@ func (s *authService) SocialLogin(provider string, token string, deviceID, userA
 	})
 
 	return tokens, nil
+}
+
+func (s *authService) GetSocialAccount(userID uint, provider string) (*permissionless.SocialAccount, error) {
+	normalizedProvider := strings.ToLower(strings.TrimSpace(provider))
+	if normalizedProvider == "" {
+		return nil, errors.New("provider required")
+	}
+	return s.SocialRepo.FindByUserAndProvider(userID, normalizedProvider)
 }
 
 func (s *authService) resolveSocialProfile(provider string, token string) (*socialProfile, string, error) {

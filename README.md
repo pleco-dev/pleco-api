@@ -196,6 +196,7 @@ AI_API_KEY=
 - `AI_ENABLED=false` keeps the app fully usable without AI.
 - `AI_PROVIDER` supports `mock`, `ollama`, `openai`, and `gemini`.
 - `AI_BASE_URL` is only required when `AI_PROVIDER=ollama`.
+- `REDIS_URL` or `REDIS_HOST`/`REDIS_PORT` enables shared Redis-backed rate limiting and response caching. Without Redis, the app falls back to in-memory stores for local single-instance development.
 - `AUTO_RUN_MIGRATIONS` and `AUTO_RUN_SEEDS` are optional flags for startup-time initialization. Keep these `false` for local and Docker workflows — run migrations and seeds manually instead.
 
 ---
@@ -821,6 +822,24 @@ make docker-rebuild
 The gateway is exposed at `http://localhost`. The Nginx layer is optional - the app can run directly without it.
 
 PgBouncer is included in Docker as a production-like pooling layer for scalable deployments. In this stack, API traffic uses PgBouncer at `pgbouncer:5432`, while the `db-setup` container connects directly to Postgres for migrations and seed data. For simple local development or small deployments, Pleco can still connect directly to PostgreSQL with a normal `DATABASE_URL`.
+
+---
+
+## Response Caching
+
+Pleco caches hot auth/admin reads with Redis when `REDIS_URL` or `REDIS_HOST` is configured. If Redis is unavailable, it falls back to an in-memory cache suitable for local single-instance development.
+
+| Endpoint / Path | Cache Key | TTL |
+|---|---:|---:|
+| `GET /auth/admin/users/:id/permissions` | `user:permissions:{userID}` | 10 minutes |
+| `GET /auth/profile` | `user:profile:{userID}` | 5 minutes |
+| `GET /auth/admin/roles` | `roles` | 20 minutes |
+| `GET /auth/admin/roles/:id` | `role:{roleID}` | 15 minutes |
+| `GET /auth/admin/roles/:id/permissions` | `role:{roleID}:permissions` | 15 minutes |
+| `GET /auth/admin/users/:id` | `user:detail:{userID}` | 5 minutes |
+| `GET /auth/social/:provider/account` | `social:account:{userID}:{provider}` | 15 minutes |
+
+Permission middleware also caches role permission checks for 10 minutes using `role:permission:{role}:{permission}`. User and role writes invalidate the related cached profile, detail, permission, and role entries so authorization-sensitive changes are refreshed promptly.
 
 ---
 

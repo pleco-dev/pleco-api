@@ -195,6 +195,9 @@ func (s *stubSocialRepo) Create(_ *social.SocialAccount) error { return nil }
 func (s *stubSocialRepo) FindByProvider(_, _ string) (*social.SocialAccount, error) {
 	return nil, nil
 }
+func (s *stubSocialRepo) FindByUserAndProvider(_ uint, _ string) (*social.SocialAccount, error) {
+	return nil, nil
+}
 func (s *stubSocialRepo) WithTx(_ *gorm.DB) social.Repository {
 	return s
 }

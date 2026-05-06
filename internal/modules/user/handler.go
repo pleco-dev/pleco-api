@@ -1,16 +1,23 @@
 package user
 
 import (
+	"context"
+	"fmt"
 	"strconv"
+	"time"
 
+	"pleco-api/internal/cache"
 	"pleco-api/internal/httpx"
 	"pleco-api/internal/modules/audit"
+	"pleco-api/internal/modules/permission"
 
 	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
-	UserService *Service
+	UserService   *Service
+	PermissionSvc *permission.Service
+	Cache         cache.Store
 }
 
 func NewHandler(userService *Service) *Handler {
@@ -65,6 +72,47 @@ func (h *Handler) GetUserByID(c *gin.Context) {
 	}
 
 	httpx.Success(c, 200, "User fetched", ToUserResponse(*user), nil)
+}
+
+func (h *Handler) GetUserPermissions(c *gin.Context) {
+	id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		httpx.Error(c, 400, "Invalid user id")
+		return
+	}
+	userID := uint(id64)
+
+	if h.Cache != nil {
+		var cached UserPermissionsResponse
+		key := fmt.Sprintf("user:permissions:%d", userID)
+		if ok, err := h.Cache.GetJSON(c.Request.Context(), key, &cached); err == nil && ok {
+			httpx.Success(c, 200, "User permissions fetched", cached, nil)
+			return
+		}
+	}
+
+	user, err := h.UserService.GetUserByID(userID)
+	if err != nil {
+		httpx.Error(c, 404, "User not found")
+		return
+	}
+
+	permissions, err := h.PermissionSvc.ListRolePermissionsByName(user.Role)
+	if err != nil {
+		httpx.Error(c, 500, "Failed to fetch user permissions")
+		return
+	}
+
+	response := UserPermissionsResponse{
+		ID:          user.ID,
+		Role:        user.Role,
+		Permissions: permissions,
+	}
+	if h.Cache != nil {
+		_ = h.Cache.SetJSON(context.Background(), fmt.Sprintf("user:permissions:%d", userID), response, 10*time.Minute)
+	}
+
+	httpx.Success(c, 200, "User permissions fetched", response, nil)
 }
 
 func (h *Handler) CreateUser(c *gin.Context) {

@@ -9,6 +9,7 @@ import (
 type Repository interface {
 	Create(socialAccount *SocialAccount) error
 	FindByProvider(provider string, providerID string) (*SocialAccount, error)
+	FindByUserAndProvider(userID uint, provider string) (*SocialAccount, error)
 	WithTx(tx *gorm.DB) Repository
 }
 
@@ -37,6 +38,23 @@ func (r *GormRepository) FindByProvider(provider, providerUserID string) (*Socia
 
 	var account SocialAccount
 	err := r.db.Where("provider = ? AND provider_user_id = ?", provider, providerUserID).First(&account).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &account, nil
+}
+
+func (r *GormRepository) FindByUserAndProvider(userID uint, provider string) (*SocialAccount, error) {
+	if userID == 0 || provider == "" {
+		return nil, errors.New("userID and provider cannot be empty")
+	}
+
+	var account SocialAccount
+	err := r.db.Where("user_id = ? AND provider = ?", userID, provider).First(&account).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}

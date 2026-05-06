@@ -35,7 +35,7 @@ func RunAPI(registerDocs func(*gin.Engine)) error {
 	RunStartupTasks(appConfig, db)
 
 	jwtService := services.NewJWTService(appConfig.JWTSecret)
-	rateStore := newRateLimitStore(appConfig.RedisURL)
+	rateStore := newRateLimitStore(redisConnectionURL(appConfig))
 	router, err := BuildRouter(db, appConfig, jwtService, rateStore)
 	if err != nil {
 		return err

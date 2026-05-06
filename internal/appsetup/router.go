@@ -19,15 +19,18 @@ import (
 
 func RegisterRoutes(router *gin.Engine, db *gorm.DB, cfg config.AppConfig, jwtService *services.JWTService, rateStore middleware.RateLimitStore) error {
 	api := router.Group("/")
+	cacheStore := newCacheStore(cfg)
 	aiService, err := ai.NewService(cfg.AI)
 	if err != nil {
 		return err
 	}
-	permissionModule := permission.BuildModule(db)
-	roleModule := role.BuildModule(db)
+	permissionModule := permission.BuildModule(db, cacheStore)
+	roleModule := role.BuildModule(db, cacheStore)
 	auditModule := audit.BuildModule(db, aiService)
-	userModule := user.BuildModule(db, auditModule.Service)
-	authModule := auth.BuildModule(db, cfg, userModule.Service, jwtService, auditModule.Service, permissionModule.Service)
+	userModule := user.BuildModule(db, auditModule.Service, cacheStore)
+	userModule.Handler.PermissionSvc = permissionModule.Service
+	userModule.Handler.Cache = cacheStore
+	authModule := auth.BuildModule(db, cfg, userModule.Service, jwtService, auditModule.Service, permissionModule.Service, cacheStore)
 
 	tokenVersionSrc := accessTokenVersionAdapter{repo: userModule.Repository}
 	auth.SetupRoutes(api, authModule.Handler, jwtService, rateStore, tokenVersionSrc)

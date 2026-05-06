@@ -89,6 +89,7 @@ func (s *authService) ResetPassword(tokenString string, newPassword string) erro
 	}); err != nil {
 		return err
 	}
+	s.invalidateUserCache(user.ID)
 
 	s.AuditSvc.SafeRecord(audit.RecordInput{
 		ActorUserID: &user.ID,

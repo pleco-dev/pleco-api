@@ -1,9 +1,12 @@
 package user
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"time"
 
+	"pleco-api/internal/cache"
 	"pleco-api/internal/modules/audit"
 	tokenModule "pleco-api/internal/modules/token"
 	"pleco-api/internal/services"
@@ -19,6 +22,7 @@ type Service struct {
 	UserRepo         Repository
 	RefreshTokenRepo tokenModule.RefreshTokenRepository
 	AuditSvc         *audit.Service
+	Cache            cache.Store
 }
 
 func NewService(db *gorm.DB, userRepo Repository, refreshRepo tokenModule.RefreshTokenRepository, auditSvc *audit.Service) *Service {
@@ -30,6 +34,20 @@ func (s *Service) GetAllUsers(page, limit int, search, role string) ([]User, int
 }
 
 func (s *Service) GetUserByID(id uint) (*User, error) {
+	if s.Cache != nil {
+		var user User
+		key := fmt.Sprintf("user:detail:%d", id)
+		if ok, err := s.Cache.GetJSON(context.Background(), key, &user); err == nil && ok {
+			return &user, nil
+		}
+		found, err := s.UserRepo.FindByID(id)
+		if err != nil {
+			return nil, err
+		}
+		_ = s.Cache.SetJSON(context.Background(), key, found, 5*time.Minute)
+		return found, nil
+	}
+
 	return s.UserRepo.FindByID(id)
 }
 
@@ -102,12 +120,14 @@ func (s *Service) UpdateUser(id uint, input UpdateUserRequest) (*User, error) {
 		}); err != nil {
 			return nil, err
 		}
+		s.invalidateUserCache(user.ID)
 		return user, nil
 	}
 
 	if err := s.UserRepo.Update(user); err != nil {
 		return nil, err
 	}
+	s.invalidateUserCache(user.ID)
 	return user, nil
 }
 
@@ -121,6 +141,7 @@ func (s *Service) UpdateProfile(id uint, input UpdateProfileRequest) (*User, err
 	if err := s.UserRepo.Update(user); err != nil {
 		return nil, err
 	}
+	s.invalidateUserCache(user.ID)
 
 	return user, nil
 }
@@ -144,12 +165,16 @@ func (s *Service) ChangePassword(id uint, currentPassword, newPassword string) e
 	user.PasswordUpdatedAt = time.Now()
 	user.AccessTokenVersion++
 
-	return s.runInTx(func(userRepo Repository, refreshRepo tokenModule.RefreshTokenRepository) error {
+	if err := s.runInTx(func(userRepo Repository, refreshRepo tokenModule.RefreshTokenRepository) error {
 		if err := userRepo.Update(user); err != nil {
 			return err
 		}
 		return refreshRepo.DeleteByUser(user.ID)
-	})
+	}); err != nil {
+		return err
+	}
+	s.invalidateUserCache(user.ID)
+	return nil
 }
 
 func (s *Service) DeleteUser(id uint, callerRole string, callerID uint) error {
@@ -170,7 +195,23 @@ func (s *Service) DeleteUser(id uint, callerRole string, callerID uint) error {
 		return errors.New("cannot delete superadmin")
 	}
 
-	return s.UserRepo.Delete(id)
+	if err := s.UserRepo.Delete(id); err != nil {
+		return err
+	}
+	s.invalidateUserCache(id)
+	return nil
+}
+
+func (s *Service) invalidateUserCache(userID uint) {
+	if s.Cache == nil {
+		return
+	}
+	_ = s.Cache.Delete(
+		context.Background(),
+		fmt.Sprintf("user:detail:%d", userID),
+		fmt.Sprintf("user:profile:%d", userID),
+		fmt.Sprintf("user:permissions:%d", userID),
+	)
 }
 
 func (s *Service) runInTx(fn func(userRepo Repository, refreshRepo tokenModule.RefreshTokenRepository) error) error {

@@ -32,6 +32,7 @@ func SetupRoutes(api *gin.RouterGroup, handler *AuthHandler, jwtService *service
 	protected.Use(middleware.AuthMiddleware(jwtService))
 	protected.Use(middleware.RequireAccessTokenVersion(tokenVersionSrc))
 	protected.GET("/profile", handler.Profile)
+	protected.GET("/social/:provider/account", handler.SocialAccount)
 	protected.GET("/sessions", handler.ListSessions)
 	protected.POST("/logout", handler.Logout)
 	protected.POST("/logout-all", handler.LogoutAll)

@@ -29,6 +29,26 @@ func (h *Handler) GetRoles(c *gin.Context) {
 	httpx.Success(c, 200, "Roles fetched", roles, nil)
 }
 
+func (h *Handler) GetRoleByID(c *gin.Context) {
+	roleID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		httpx.Error(c, 400, "Invalid role id")
+		return
+	}
+
+	role, err := h.RoleService.FindByID(uint(roleID))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			httpx.Error(c, 404, "Role not found")
+			return
+		}
+		httpx.Error(c, 500, "Failed to fetch role")
+		return
+	}
+
+	httpx.Success(c, 200, "Role fetched", role, nil)
+}
+
 func (h *Handler) GetPermissions(c *gin.Context) {
 	permissions, err := h.RoleService.ListPermissions()
 	if err != nil {

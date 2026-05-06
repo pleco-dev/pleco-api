@@ -88,6 +88,7 @@ func (s *authService) VerifyEmail(token string) error {
 	}); err != nil {
 		return err
 	}
+	s.invalidateUserCache(user.ID)
 
 	s.AuditSvc.SafeRecord(audit.RecordInput{
 		ActorUserID: &user.ID,

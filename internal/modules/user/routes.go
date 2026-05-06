@@ -18,6 +18,7 @@ func SetupRoutes(api *gin.RouterGroup, handler *Handler, jwtService *services.JW
 
 	admin := protected.Group("/admin")
 	admin.GET("/users", middleware.RequirePermission(permissionService, "user.read_all"), handler.GetAllUsers)
+	admin.GET("/users/:id/permissions", middleware.RequirePermission(permissionService, "user.read"), handler.GetUserPermissions)
 	admin.GET("/users/:id", middleware.RequirePermission(permissionService, "user.read"), handler.GetUserByID)
 	admin.POST("/users", middleware.RequirePermission(permissionService, "user.create"), handler.CreateUser)
 	admin.PUT("/users/:id", middleware.RequirePermission(permissionService, "user.update"), handler.UpdateUser)

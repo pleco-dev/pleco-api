@@ -4,6 +4,7 @@ package mocks
 
 import (
 	auth "pleco-api/internal/modules/auth"
+	social "pleco-api/internal/modules/social"
 	user "pleco-api/internal/modules/user"
 
 	mock "github.com/stretchr/testify/mock"
@@ -42,6 +43,29 @@ func (_m *AuthService) GetProfile(userID uint) (*user.User, error) {
 	var r1 error
 	if rf, ok := ret.Get(1).(func(uint) error); ok {
 		r1 = rf(userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+func (_m *AuthService) GetSocialAccount(userID uint, provider string) (*social.SocialAccount, error) {
+	ret := _m.Called(userID, provider)
+	if len(ret) == 0 {
+		panic("no return value specified for GetSocialAccount")
+	}
+	var r0 *social.SocialAccount
+	if rf, ok := ret.Get(0).(func(uint, string) (*social.SocialAccount, error)); ok {
+		return rf(userID, provider)
+	}
+	if rf, ok := ret.Get(0).(func(uint, string) *social.SocialAccount); ok {
+		r0 = rf(userID, provider)
+	} else if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*social.SocialAccount)
+	}
+	var r1 error
+	if rf, ok := ret.Get(1).(func(uint, string) error); ok {
+		r1 = rf(userID, provider)
 	} else {
 		r1 = ret.Error(1)
 	}

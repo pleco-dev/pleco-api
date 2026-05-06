@@ -1,12 +1,16 @@
 package auth
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"pleco-api/internal/httpx"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"pleco-api/internal/cache"
 	"pleco-api/internal/modules/permission"
 	"pleco-api/internal/modules/user"
 	"pleco-api/internal/services"
@@ -15,6 +19,7 @@ import (
 type AuthHandler struct {
 	AuthService   AuthService
 	PermissionSvc *permission.Service
+	Cache         cache.Store
 }
 
 func NewHandler(authService AuthService, permissionSvc *permission.Service) *AuthHandler {
@@ -200,21 +205,43 @@ func (h *AuthHandler) Profile(c *gin.Context) {
 		return
 	}
 
+	if h.Cache != nil {
+		var cached profileResponse
+		key := fmt.Sprintf("user:profile:%d", userID)
+		if ok, err := h.Cache.GetJSON(c.Request.Context(), key, &cached); err == nil && ok {
+			httpx.Success(c, http.StatusOK, "Profile fetched", cached, nil)
+			return
+		}
+	}
+
 	user, err := h.AuthService.GetProfile(userID)
 	if err != nil {
 		httpx.Error(c, http.StatusNotFound, "User not found")
 		return
 	}
 
-	permissions, _ := h.PermissionSvc.Repo.ListRolePermissionsByName(user.Role)
+	permissions, _ := h.PermissionSvc.ListRolePermissionsByName(user.Role)
 
-	httpx.Success(c, http.StatusOK, "Profile fetched", gin.H{
-		"id":          user.ID,
-		"name":        user.Name,
-		"email":       user.Email,
-		"role":        user.Role,
-		"permissions": permissions,
-	}, nil)
+	response := profileResponse{
+		ID:          user.ID,
+		Name:        user.Name,
+		Email:       user.Email,
+		Role:        user.Role,
+		Permissions: permissions,
+	}
+	if h.Cache != nil {
+		_ = h.Cache.SetJSON(context.Background(), fmt.Sprintf("user:profile:%d", userID), response, 5*time.Minute)
+	}
+
+	httpx.Success(c, http.StatusOK, "Profile fetched", response, nil)
+}
+
+type profileResponse struct {
+	ID          uint     `json:"id"`
+	Name        string   `json:"name"`
+	Email       string   `json:"email"`
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions"`
 }
 
 func (h *AuthHandler) VerifyEmail(c *gin.Context) {
@@ -311,10 +338,59 @@ func (h *AuthHandler) SocialLogin(c *gin.Context) {
 	httpx.Success(c, http.StatusOK, "Social login success", tokens, nil)
 }
 
+func (h *AuthHandler) SocialAccount(c *gin.Context) {
+	userID, ok := httpx.GetUserIDFromContext(c)
+	if !ok {
+		httpx.Error(c, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	provider := c.Param("provider")
+	cacheKey := fmt.Sprintf("social:account:%d:%s", userID, provider)
+	if h.Cache != nil {
+		var cached socialAccountResponse
+		if ok, err := h.Cache.GetJSON(c.Request.Context(), cacheKey, &cached); err == nil && ok {
+			httpx.Success(c, http.StatusOK, "Social account fetched", cached, nil)
+			return
+		}
+	}
+
+	account, err := h.AuthService.GetSocialAccount(userID, provider)
+	if err != nil {
+		httpx.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	if account == nil {
+		httpx.Error(c, http.StatusNotFound, "Social account not found")
+		return
+	}
+
+	response := socialAccountResponse{
+		ID:             account.ID,
+		UserID:         account.UserID,
+		Provider:       account.Provider,
+		ProviderUserID: account.ProviderUserID,
+		AvatarURL:      account.AvatarURL,
+	}
+	if h.Cache != nil {
+		_ = h.Cache.SetJSON(context.Background(), cacheKey, response, 15*time.Minute)
+	}
+
+	httpx.Success(c, http.StatusOK, "Social account fetched", response, nil)
+}
+
 func dtoToUser(name, email string) user.User {
 	return user.User{
 		Name:  name,
 		Email: email,
 		Role:  "user",
 	}
+}
+
+type socialAccountResponse struct {
+	ID             uint   `json:"id"`
+	UserID         uint   `json:"user_id"`
+	Provider       string `json:"provider"`
+	ProviderUserID string `json:"provider_user_id"`
+	AvatarURL      string `json:"avatar_url"`
 }

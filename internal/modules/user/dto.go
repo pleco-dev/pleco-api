@@ -8,6 +8,12 @@ type UserResponse struct {
 	IsVerified bool   `json:"is_verified"`
 }
 
+type UserPermissionsResponse struct {
+	ID          uint     `json:"id"`
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions"`
+}
+
 type CreateUserRequest struct {
 	Name       string `json:"name" binding:"required,min=3"`
 	Email      string `json:"email" binding:"required,email"`

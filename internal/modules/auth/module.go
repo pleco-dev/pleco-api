@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"pleco-api/internal/cache"
 	"pleco-api/internal/config"
 	"pleco-api/internal/modules/audit"
 	"pleco-api/internal/modules/permission"
@@ -15,9 +16,17 @@ type Module struct {
 	Handler *AuthHandler
 }
 
-func BuildModule(db *gorm.DB, cfg config.AppConfig, userService *userModule.Service, jwtService *services.JWTService, auditService *audit.Service, permissionService *permission.Service) *Module {
+func BuildModule(db *gorm.DB, cfg config.AppConfig, userService *userModule.Service, jwtService *services.JWTService, auditService *audit.Service, permissionService *permission.Service, stores ...cache.Store) *Module {
 	service := NewService(db, cfg, userService, jwtService, auditService)
+	if len(stores) > 0 {
+		if impl, ok := service.(*authService); ok {
+			impl.Cache = stores[0]
+		}
+	}
 	handler := NewHandler(service, permissionService)
+	if len(stores) > 0 {
+		handler.Cache = stores[0]
+	}
 
 	return &Module{
 		Service: service,

@@ -14,6 +14,7 @@ func SetupRoutes(api *gin.RouterGroup, handler *Handler, jwtService *services.JW
 	protected.Use(middleware.RequireAccessTokenVersion(tokenVersionSrc))
 
 	protected.GET("/roles", middleware.RequirePermission(permissionService, "role.read"), handler.GetRoles)
+	protected.GET("/roles/:id", middleware.RequirePermission(permissionService, "role.read"), handler.GetRoleByID)
 	protected.GET("/permissions", middleware.RequirePermission(permissionService, "permission.read"), handler.GetPermissions)
 	protected.GET("/roles/:id/permissions", middleware.RequirePermission(permissionService, "role.read"), handler.GetRolePermissions)
 	protected.PUT("/roles/:id/permissions", middleware.RequirePermission(permissionService, "role.update_permissions"), handler.UpdateRolePermissions)

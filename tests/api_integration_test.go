@@ -64,6 +64,11 @@ func TestAPI_Login_Integration(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 	mock.ExpectCommit()
 
+	// Expect login activity timestamp update
+	mock.ExpectExec(`UPDATE "users" SET "last_login_at"=\$1,"updated_at"=\$2 WHERE id = \$3 AND "users"\."deleted_at" IS NULL`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), 1).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
 	// Expect save for audit log (SafeRecord uses a transaction)
 	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO "audit_logs".*`).

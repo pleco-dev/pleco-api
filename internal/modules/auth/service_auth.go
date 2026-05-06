@@ -24,6 +24,9 @@ func (s *authService) Register(user *userModule.User, password string) error {
 	user.Password = hashedPassword
 	user.Role = "user"
 	user.IsVerified = false
+	now := time.Now()
+	user.PasswordUpdatedAt = now
+	user.LastPasswordChange = &now
 
 	verificationToken := uuid.NewString()
 	err = s.DB.Transaction(func(tx *gorm.DB) error {
@@ -109,6 +112,11 @@ func (s *authService) Login(email, password, deviceID, userAgent, ipAddress stri
 	if err != nil {
 		return nil, err
 	}
+
+	if err := s.UserRepo.UpdateLastLogin(user.ID, time.Now()); err != nil {
+		return nil, err
+	}
+	s.invalidateUserCache(user.ID)
 
 	s.AuditSvc.SafeRecord(audit.RecordInput{
 		ActorUserID: &user.ID,

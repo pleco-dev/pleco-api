@@ -71,12 +71,15 @@ func (s *Service) CreateUser(input CreateUserRequest) (*User, error) {
 		return nil, err
 	}
 
+	now := time.Now()
 	user := &User{
-		Name:       input.Name,
-		Email:      input.Email,
-		Password:   hashedPassword,
-		Role:       role,
-		IsVerified: input.IsVerified,
+		Name:               input.Name,
+		Email:              input.Email,
+		Password:           hashedPassword,
+		Role:               role,
+		IsVerified:         input.IsVerified,
+		PasswordUpdatedAt:  now,
+		LastPasswordChange: ptrTime(now),
 	}
 
 	if err := s.UserRepo.Create(user); err != nil {
@@ -162,7 +165,9 @@ func (s *Service) ChangePassword(id uint, currentPassword, newPassword string) e
 	}
 
 	user.Password = hashedPassword
-	user.PasswordUpdatedAt = time.Now()
+	now := time.Now()
+	user.PasswordUpdatedAt = now
+	user.LastPasswordChange = &now
 	user.AccessTokenVersion++
 
 	if err := s.runInTx(func(userRepo Repository, refreshRepo tokenModule.RefreshTokenRepository) error {
@@ -175,6 +180,10 @@ func (s *Service) ChangePassword(id uint, currentPassword, newPassword string) e
 	}
 	s.invalidateUserCache(user.ID)
 	return nil
+}
+
+func ptrTime(t time.Time) *time.Time {
+	return &t
 }
 
 func (s *Service) DeleteUser(id uint, callerRole string, callerID uint) error {

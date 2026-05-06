@@ -34,8 +34,8 @@ func setupPermissionTempTables(t *testing.T, db *gorm.DB) *gorm.DB {
 	tx := db.Begin()
 	require.NoError(t, tx.Error)
 
-	require.NoError(t, tx.Exec(`CREATE TEMP TABLE roles (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE)`).Error)
-	require.NoError(t, tx.Exec(`CREATE TEMP TABLE role_permissions (id SERIAL PRIMARY KEY, role_id INTEGER NOT NULL, permission VARCHAR(255) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)`).Error)
+	require.NoError(t, tx.Exec(`CREATE TEMP TABLE roles (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP WITH TIME ZONE)`).Error)
+	require.NoError(t, tx.Exec(`CREATE TEMP TABLE role_permissions (id SERIAL PRIMARY KEY, role_id INTEGER NOT NULL, permission VARCHAR(255) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP WITH TIME ZONE)`).Error)
 
 	t.Cleanup(func() {
 		_ = tx.Rollback().Error

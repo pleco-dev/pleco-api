@@ -115,10 +115,11 @@ func (s *stubRefreshTokenRepo) WithTx(_ *gorm.DB) token.RefreshTokenRepository {
 }
 
 type stubUserRepo struct {
-	create      func(*user.User) error
-	findByEmail func(string) (*user.User, error)
-	findByID    func(uint) (*user.User, error)
-	update      func(*user.User) error
+	create          func(*user.User) error
+	findByEmail     func(string) (*user.User, error)
+	findByID        func(uint) (*user.User, error)
+	update          func(*user.User) error
+	updateLastLogin func(uint, time.Time) error
 }
 
 func (s *stubUserRepo) Create(u *user.User) error {
@@ -142,6 +143,12 @@ func (s *stubUserRepo) FindByID(id uint) (*user.User, error) {
 func (s *stubUserRepo) Update(u *user.User) error {
 	if s.update != nil {
 		return s.update(u)
+	}
+	return nil
+}
+func (s *stubUserRepo) UpdateLastLogin(id uint, at time.Time) error {
+	if s.updateLastLogin != nil {
+		return s.updateLastLogin(id, at)
 	}
 	return nil
 }

@@ -8,6 +8,7 @@ import (
 	user "pleco-api/internal/modules/user"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -20,6 +21,7 @@ type stubUserRepository struct {
 	findByEmail func(string) (*user.User, error)
 	findByID    func(uint) (*user.User, error)
 	update      func(*user.User) error
+	updateLogin func(uint, time.Time) error
 	findAll     func() ([]user.User, error)
 	delete      func(uint) error
 }
@@ -45,6 +47,12 @@ func (s *stubUserRepository) FindByID(id uint) (*user.User, error) {
 func (s *stubUserRepository) Update(u *user.User) error {
 	if s.update != nil {
 		return s.update(u)
+	}
+	return nil
+}
+func (s *stubUserRepository) UpdateLastLogin(id uint, at time.Time) error {
+	if s.updateLogin != nil {
+		return s.updateLogin(id, at)
 	}
 	return nil
 }

@@ -73,6 +73,7 @@ services:
       db:
         condition: service_healthy
     environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-auth_db}?sslmode=disable
       ENV_FILE: .env.docker
       # Reduce peak memory usage during `go run ./cmd/seed` compilation
       GOMAXPROCS: "1"

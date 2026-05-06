@@ -1,12 +1,17 @@
 package user
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Repository interface {
 	Create(user *User) error
 	FindByEmail(email string) (*User, error)
 	FindByID(id uint) (*User, error)
 	Update(user *User) error
+	UpdateLastLogin(id uint, at time.Time) error
 	FindAll() ([]User, error)
 	FindAllWithFilter(page, limit int, search, role string) ([]User, int64, error)
 	Delete(id uint) error
@@ -53,12 +58,21 @@ func (r *GormRepository) Update(user *User) error {
 		"role_id":              user.RoleID,
 		"is_verified":          user.IsVerified,
 		"password_updated_at":  user.PasswordUpdatedAt,
+		"last_login_at":        user.LastLoginAt,
+		"last_password_change": user.LastPasswordChange,
 		"access_token_version": user.AccessTokenVersion,
 	}
 	if user.Password != "" {
 		updates["password"] = user.Password
 	}
 	return r.db.Model(user).Updates(updates).Error
+}
+
+func (r *GormRepository) UpdateLastLogin(id uint, at time.Time) error {
+	return r.db.Session(&gorm.Session{SkipDefaultTransaction: true}).
+		Model(&User{}).
+		Where("id = ?", id).
+		Update("last_login_at", at).Error
 }
 
 func (r *GormRepository) FindAll() ([]User, error) {

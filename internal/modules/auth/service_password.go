@@ -68,7 +68,11 @@ func (s *authService) ResetPassword(tokenString string, newPassword string) erro
 		return err
 	}
 
-	if user.PasswordUpdatedAt.Unix() > int64(issuedAtValue) {
+	lastPasswordChange := user.PasswordUpdatedAt
+	if user.LastPasswordChange != nil && user.LastPasswordChange.After(lastPasswordChange) {
+		lastPasswordChange = *user.LastPasswordChange
+	}
+	if lastPasswordChange.Unix() > int64(issuedAtValue) {
 		return errors.New("token already invalid")
 	}
 
@@ -78,7 +82,9 @@ func (s *authService) ResetPassword(tokenString string, newPassword string) erro
 	}
 
 	user.Password = hashed
-	user.PasswordUpdatedAt = time.Now()
+	now := time.Now()
+	user.PasswordUpdatedAt = now
+	user.LastPasswordChange = &now
 	user.AccessTokenVersion++
 
 	if err := s.runUserRefreshTx(func(userRepo userRepositoryTx, refreshRepo refreshTokenRepositoryTx) error {

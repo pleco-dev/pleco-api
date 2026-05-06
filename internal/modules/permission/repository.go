@@ -1,6 +1,10 @@
 package permission
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Repository interface {
 	HasRolePermission(roleName, permission string) (bool, error)
@@ -26,6 +30,7 @@ func (r *gormRepository) HasRolePermission(roleName, permission string) (bool, e
 	err := r.db.Table("role_permissions").
 		Joins("JOIN roles ON roles.id = role_permissions.role_id").
 		Where("roles.name = ? AND role_permissions.permission = ?", roleName, permission).
+		Where("roles.deleted_at IS NULL AND role_permissions.deleted_at IS NULL").
 		Count(&count).Error
 	if err != nil {
 		return false, err
@@ -47,6 +52,7 @@ func (r *gormRepository) ListRolePermissions(roleID uint) ([]string, error) {
 	var permissions []string
 	if err := r.db.Table("role_permissions").
 		Where("role_id = ?", roleID).
+		Where("deleted_at IS NULL").
 		Order("permission ASC").
 		Pluck("permission", &permissions).Error; err != nil {
 		return nil, err
@@ -60,6 +66,7 @@ func (r *gormRepository) ListRolePermissionsByName(roleName string) ([]string, e
 	if err := r.db.Table("role_permissions").
 		Joins("JOIN roles ON roles.id = role_permissions.role_id").
 		Where("roles.name = ?", roleName).
+		Where("roles.deleted_at IS NULL AND role_permissions.deleted_at IS NULL").
 		Order("role_permissions.permission ASC").
 		Pluck("role_permissions.permission", &permissions).Error; err != nil {
 		return nil, err
@@ -83,7 +90,9 @@ func (r *gormRepository) AllPermissionsExist(names []string) (bool, error) {
 
 func (r *gormRepository) ReplaceRolePermissions(roleID uint, permissions []string) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Table("role_permissions").Where("role_id = ?", roleID).Delete(map[string]interface{}{}).Error; err != nil {
+		if err := tx.Table("role_permissions").
+			Where("role_id = ? AND deleted_at IS NULL", roleID).
+			Update("deleted_at", time.Now()).Error; err != nil {
 			return err
 		}
 

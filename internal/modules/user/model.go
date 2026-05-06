@@ -18,5 +18,7 @@ type User struct {
 	RoleDetails        roleModule.Role `gorm:"foreignKey:RoleID" json:"role_details,omitempty"`
 	IsVerified         bool            `json:"is_verified"`
 	PasswordUpdatedAt  time.Time
-	AccessTokenVersion uint `gorm:"default:0" json:"-"`
+	LastLoginAt        *time.Time `json:"last_login_at,omitempty"`
+	LastPasswordChange *time.Time `json:"last_password_change_at,omitempty"`
+	AccessTokenVersion uint       `gorm:"default:0" json:"-"`
 }

@@ -1,13 +1,17 @@
 package user
 
+import "time"
+
 type UserResponse struct {
-	ID          uint                 `json:"id"`
-	Name        string               `json:"name"`
-	Email       string               `json:"email"`
-	Role        string               `json:"role"`
-	RoleID      uint                 `json:"role_id"`
-	RoleDetails *RoleDetailsResponse `json:"role_details,omitempty"`
-	IsVerified  bool                 `json:"is_verified"`
+	ID                 uint                 `json:"id"`
+	Name               string               `json:"name"`
+	Email              string               `json:"email"`
+	Role               string               `json:"role"`
+	RoleID             uint                 `json:"role_id"`
+	RoleDetails        *RoleDetailsResponse `json:"role_details,omitempty"`
+	IsVerified         bool                 `json:"is_verified"`
+	LastLoginAt        *time.Time           `json:"last_login_at,omitempty"`
+	LastPasswordChange *time.Time           `json:"last_password_change_at,omitempty"`
 }
 
 type RoleDetailsResponse struct {
@@ -54,6 +58,8 @@ func ToUserResponse(user User) UserResponse {
 		RoleID:     user.RoleID,
 		IsVerified: user.IsVerified,
 	}
+	response.LastLoginAt = user.LastLoginAt
+	response.LastPasswordChange = user.LastPasswordChange
 	if user.RoleDetails.ID != 0 {
 		response.RoleDetails = &RoleDetailsResponse{
 			ID:   user.RoleDetails.ID,

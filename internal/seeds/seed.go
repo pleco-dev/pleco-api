@@ -8,6 +8,7 @@ import (
 	roleModule "pleco-api/internal/modules/role"
 	userModule "pleco-api/internal/modules/user"
 	"pleco-api/internal/services"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -127,7 +128,7 @@ func SeedRolePermissions(db *gorm.DB) {
 
 			row := rolePermissionRow{RoleID: role.ID, Permission: permission}
 			if err := db.Table("role_permissions").
-				Where("role_id = ? AND permission = ?", role.ID, permission).
+				Where("role_id = ? AND permission = ? AND deleted_at IS NULL", role.ID, permission).
 				FirstOrCreate(&row).Error; err != nil {
 				log.Printf("Failed to seed role permission %s -> %s: %v", roleName, permission, err)
 			}
@@ -168,13 +169,16 @@ func SeedAdmin(db *gorm.DB, cfg config.AppConfig) {
 			return
 		}
 
+		now := time.Now()
 		admin := userModule.User{
-			Name:       "Super Admin",
-			Email:      email,
-			Password:   hashedPassword,
-			RoleID:     superadminRole.ID,
-			Role:       superadminRole.Name,
-			IsVerified: true,
+			Name:               "Super Admin",
+			Email:              email,
+			Password:           hashedPassword,
+			RoleID:             superadminRole.ID,
+			Role:               superadminRole.Name,
+			IsVerified:         true,
+			PasswordUpdatedAt:  now,
+			LastPasswordChange: &now,
 		}
 
 		if err := db.Create(&admin).Error; err != nil {

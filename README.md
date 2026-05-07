@@ -916,7 +916,10 @@ go test ./...
 
 Included files:
 - Collection: [`pleco.postman_collection.json`](postman/pleco.postman_collection.json)
+- Docker collection: [`pleco.docker.postman_collection.json`](postman/pleco.docker.postman_collection.json)
 - Environment: [`pleco.local.postman_environment.json`](postman/pleco.local.postman_environment.json)
+
+Use the Docker collection when the Compose stack is running through the Nginx gateway at `http://localhost`. Use the regular collection when the API is running directly at `http://localhost:8080`.
 
 Recommended flow:
 

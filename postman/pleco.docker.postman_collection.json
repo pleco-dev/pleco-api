@@ -1,0 +1,1092 @@
+{
+  "info": {
+    "name": "Pleco Docker",
+    "_postman_id": "34a62b92-9d6d-4d51-ae8f-1de69d4f8f7a",
+    "description": "Manual test collection for pleco-api through the Docker Compose gateway",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "refresh_token",
+      "value": ""
+    },
+    {
+      "key": "device_id",
+      "value": "web"
+    },
+    {
+      "key": "user_email",
+      "value": "tester@example.com"
+    },
+    {
+      "key": "user_password",
+      "value": "secret123"
+    },
+    {
+      "key": "managed_user_id",
+      "value": "1"
+    },
+    {
+      "key": "managed_user_email",
+      "value": "managed@example.com"
+    },
+    {
+      "key": "managed_user_password",
+      "value": "secret123"
+    },
+    {
+      "key": "verify_token",
+      "value": ""
+    },
+    {
+      "key": "reset_token",
+      "value": ""
+    },
+    {
+      "key": "session_id",
+      "value": ""
+    },
+    {
+      "key": "google_id_token",
+      "value": ""
+    },
+    {
+      "key": "facebook_access_token",
+      "value": ""
+    },
+    {
+      "key": "apple_id_token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health (Legacy)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('response contains ok status', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.eql('success');",
+                  "  pm.expect(json.data.status).to.eql('ok');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/health"
+          }
+        },
+        {
+          "name": "Liveness Probe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('response contains ok status', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.eql('success');",
+                  "  pm.expect(json.data.status).to.eql('ok');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/health/live"
+          }
+        },
+        {
+          "name": "Readiness Probe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('response contains ok status', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.eql('success');",
+                  "  pm.expect(json.data.status).to.eql('ok');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/health/ready"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('register returns success', function () {",
+                  "  pm.expect([200, 500]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Tester\",\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\"\n}"
+            },
+            "url": "{{base_url}}/auth/register"
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('login returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const loginJson = pm.response.json();",
+                  "const loginData = loginJson.data || {};",
+                  "pm.test('login returns tokens', function () {",
+                  "  pm.expect(loginData.access_token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(loginData.refresh_token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "if (loginData.access_token) pm.environment.set('access_token', loginData.access_token);",
+                  "if (loginData.refresh_token) pm.environment.set('refresh_token', loginData.refresh_token);",
+                  "console.log('access_token set:', !!loginData.access_token);",
+                  "console.log('refresh_token set:', !!loginData.refresh_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\"\n}"
+            },
+            "url": "{{base_url}}/auth/login"
+          }
+        },
+        {
+          "name": "Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('profile returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const profileJson = pm.response.json();",
+                  "pm.test('profile contains email', function () {",
+                  "  pm.expect(profileJson.data.email).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/profile"
+          }
+        },
+        {
+          "name": "Update Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('update profile returns success', function () {",
+                  "  pm.expect([200, 400, 401]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Tester Updated\"\n}"
+            },
+            "url": "{{base_url}}/auth/profile"
+          }
+        },
+        {
+          "name": "Change Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('change password returns known status', function () {",
+                  "  pm.expect([200, 400, 401]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  pm.environment.set('user_password', 'newsecret123');",
+                  "  pm.environment.unset('access_token');",
+                  "  pm.environment.unset('refresh_token');",
+                  "  console.log('password changed; tokens cleared, log in again before calling protected or refresh endpoints');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"{{user_password}}\",\n  \"new_password\": \"newsecret123\"\n}"
+            },
+            "url": "{{base_url}}/auth/change-password"
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('refresh returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const refreshJson = pm.response.json();",
+                  "const refreshData = refreshJson.data || {};",
+                  "pm.test('refresh returns rotated tokens', function () {",
+                  "  pm.expect(refreshData.access_token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(refreshData.refresh_token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "if (refreshData.access_token) pm.environment.set('access_token', refreshData.access_token);",
+                  "if (refreshData.refresh_token) pm.environment.set('refresh_token', refreshData.refresh_token);",
+                  "console.log('access_token rotated:', !!refreshData.access_token);",
+                  "console.log('refresh_token rotated:', !!refreshData.refresh_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": "{{base_url}}/auth/refresh"
+          }
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('logout returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/logout"
+          }
+        },
+        {
+          "name": "List Sessions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('list sessions returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "const sessions = json.data || [];",
+                  "pm.test('list sessions returns an array', function () {",
+                  "  pm.expect(Array.isArray(sessions)).to.eql(true);",
+                  "});",
+                  "if (sessions.length > 0 && sessions[0].id) {",
+                  "  pm.environment.set('session_id', sessions[0].id);",
+                  "  console.log('session_id set:', sessions[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/sessions"
+          }
+        },
+        {
+          "name": "Revoke Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('revoke session returns known status', function () {",
+                  "  pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/sessions/{{session_id}}"
+          }
+        },
+        {
+          "name": "Logout Other Sessions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('logout other sessions returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "var logoutOthersJson = pm.response.json();",
+                  "var logoutOthersData = logoutOthersJson.data || {};",
+                  "pm.test('logout other sessions returns rotated tokens', function () {",
+                  "  pm.expect(logoutOthersData).to.have.property('access_token');",
+                  "  pm.expect(logoutOthersData).to.have.property('refresh_token');",
+                  "});",
+                  "if (logoutOthersData.access_token) pm.environment.set('access_token', logoutOthersData.access_token);",
+                  "if (logoutOthersData.refresh_token) pm.environment.set('refresh_token', logoutOthersData.refresh_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{device_id}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/logout-others"
+          }
+        },
+        {
+          "name": "Logout All Sessions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('logout all sessions returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.environment.unset('access_token');",
+                  "pm.environment.unset('refresh_token');",
+                  "console.log('logout-all cleared stored tokens; log in again before protected requests');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/logout-all"
+          }
+        },
+        {
+          "name": "Verify Email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('verify email returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/auth/verify?token={{verify_token}}"
+          }
+        },
+        {
+          "name": "Resend Verification",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('resend verification returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_email}}\"\n}"
+            },
+            "url": "{{base_url}}/auth/resend-verification"
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('forgot password returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_email}}\"\n}"
+            },
+            "url": "{{base_url}}/auth/forgot-password"
+          }
+        },
+        {
+          "name": "Reset Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('reset password returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{reset_token}}\",\n  \"new_password\": \"newsecret123\"\n}"
+            },
+            "url": "{{base_url}}/auth/reset-password"
+          }
+        },
+        {
+          "name": "Social Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('social login returns success', function () {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"google\",\n  \"token\": \"{{google_id_token}}\"\n}"
+            },
+            "url": "{{base_url}}/auth/social-login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get Users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('get users returns success', function () {",
+                  "  pm.expect([200, 403]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/users?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Get User By ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('get user by id returns known status', function () {",
+                  "  pm.expect([200, 400, 403, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/users/{{managed_user_id}}"
+          }
+        },
+        {
+          "name": "Create User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('create user returns known status', function () {",
+                  "  pm.expect([201, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Managed User\",\n  \"email\": \"{{managed_user_email}}\",\n  \"password\": \"{{managed_user_password}}\",\n  \"role\": \"user\",\n  \"is_verified\": true\n}"
+            },
+            "url": "{{base_url}}/auth/admin/users"
+          }
+        },
+        {
+          "name": "Update User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('update user returns known status', function () {",
+                  "  pm.expect([200, 400, 403, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Managed User Updated\",\n  \"email\": \"{{managed_user_email}}\",\n  \"role\": \"user\",\n  \"is_verified\": true\n}"
+            },
+            "url": "{{base_url}}/auth/admin/users/{{managed_user_id}}"
+          }
+        },
+        {
+          "name": "Delete User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('delete user returns known status', function () {",
+                  "  pm.expect([200, 400, 403, 500]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/users/{{managed_user_id}}"
+          }
+        },
+        {
+          "name": "Get Audit Logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('get audit logs returns known status', function () {",
+                  "  pm.expect([200, 403]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/audit-logs?page=1&limit=10&resource=user&status=success&search=admin"
+          }
+        },
+        {
+          "name": "Export Audit Logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('export audit logs returns known status', function () {",
+                  "  pm.expect([200, 403]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/audit-logs/export?resource=user&status=success"
+          }
+        },
+        {
+          "name": "Investigate Audit Logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('investigate audit logs returns known status', function () {",
+                  "  pm.expect([200, 403, 503]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  const investigationId = json.meta && json.meta.investigation_id;",
+                  "  if (investigationId) pm.environment.set('investigation_id', investigationId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resource\": \"auth\",\n  \"status\": \"failed\",\n  \"limit\": 50\n}"
+            },
+            "url": "{{base_url}}/auth/admin/audit-logs/investigations"
+          }
+        },
+        {
+          "name": "List Audit Investigations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('list audit investigations returns known status', function () {",
+                  "  pm.expect([200, 403]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  const first = json.data && json.data[0];",
+                  "  if (first && first.id) pm.environment.set('investigation_id', first.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/audit-logs/investigations?page=1&limit=10&resource=auth&status=failed&created_by_user_id=1&ai_provider={{ai_provider}}&ai_model={{ai_model}}&search=invalid%20credentials&created_from=2026-04-20T00:00:00Z&created_to=2026-04-22T23:59:59Z"
+          }
+        },
+        {
+          "name": "Get Audit Investigation Detail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('get audit investigation detail returns known status', function () {",
+                  "  pm.expect([200, 400, 403, 404]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/audit-logs/investigations/{{investigation_id}}"
+          }
+        },
+        {
+          "name": "Get Roles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('get roles returns known status', function () {",
+                  "  pm.expect([200, 403]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/roles"
+          }
+        },
+        {
+          "name": "Get Permissions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('get permissions returns known status', function () {",
+                  "  pm.expect([200, 403]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/permissions"
+          }
+        },
+        {
+          "name": "Get Role Permissions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('get role permissions returns known status', function () {",
+                  "  pm.expect([200, 403, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/admin/roles/2/permissions"
+          }
+        },
+        {
+          "name": "Update Role Permissions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('update role permissions returns known status', function () {",
+                  "  pm.expect([200, 400, 403, 404]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"permissions\": [\n    \"user.read_all\",\n    \"user.read\",\n    \"permission.read\",\n    \"role.read\",\n    \"role.update_permissions\"\n  ]\n}"
+            },
+            "url": "{{base_url}}/auth/admin/roles/2/permissions"
+          }
+        }
+      ]
+    }
+  ]
+}

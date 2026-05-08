@@ -26,6 +26,8 @@ services:
     restart: always
     env_file:
       - .env.docker
+    ports:
+      - "127.0.0.1:5433:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:

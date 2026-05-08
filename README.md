@@ -144,6 +144,7 @@ Copy one of the example files depending on your workflow:
 
 - Local development: [`.env.example`](.env.example)
 - Docker: [`.env.docker.example`](.env.docker.example)
+- Production: [`.env.production.example`](.env.production.example)
 
 ### Common Variables
 
@@ -851,7 +852,7 @@ The API will be available at `http://localhost:8080`. The app respects the `PORT
 
 ## Docker Workflow
 
-The Docker setup includes an application container, optional PgBouncer connection pooling, PostgreSQL, Redis, Nginx gateway, and a `db-setup` container that handles migrations and seeding.
+The default Docker setup is intended for local development. It includes an application container, optional PgBouncer connection pooling, PostgreSQL, Redis, Nginx gateway, and a `db-setup` container that handles migrations and seeding.
 
 ```bash
 # Start the full stack
@@ -867,6 +868,19 @@ make docker-rebuild
 The gateway is exposed at `http://localhost`. The Nginx layer is optional - the app can run directly without it.
 
 PgBouncer is included in Docker as a production-like pooling layer for scalable deployments. In this stack, API traffic uses PgBouncer at `pgbouncer:5432`, while the `db-setup` container connects directly to Postgres for migrations and seed data. For simple local development or small deployments, Pleco can still connect directly to PostgreSQL with a normal `DATABASE_URL`.
+
+### Production Deployment
+
+For production, deploy only the API image and connect it to managed/private infrastructure:
+
+- Managed PostgreSQL via `DATABASE_URL` with `sslmode=require` when supported.
+- Managed Redis via `REDIS_URL` so rate limits and cache entries are shared across replicas.
+- A platform load balancer or reverse proxy for TLS and public traffic.
+- `AUTO_RUN_MIGRATIONS=false` and `AUTO_RUN_SEEDS=false` on the long-running API service.
+
+Use [`docker-compose.prod.example.yaml`](docker-compose.prod.example.yaml) as a minimal production-style reference. It intentionally does not include local Postgres, PgBouncer, Redis, or Nginx. Run migrations once per deploy as a release job or CI/CD step before starting or rolling the API replicas.
+
+Do not publish PostgreSQL port `5432` in production. For database administration, use your provider console, VPN, SSH tunnel, bastion host, or IP-restricted external endpoint.
 
 ---
 

@@ -1,10 +1,8 @@
 package config
 
 import (
-	"context"
 	"database/sql"
 	"log"
-	"net"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -20,18 +18,6 @@ func DatabaseURL() string {
 func ConnectDB(dsn string) *gorm.DB {
 	if dsn == "" {
 		log.Fatal("❌ DATABASE_URL is not set")
-	}
-
-	// 🚀 Force IPv4 by overriding default dialer
-	dialer := &net.Dialer{
-		Timeout: 5 * time.Second,
-	}
-
-	net.DefaultResolver = &net.Resolver{
-		PreferGo: true,
-		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			return dialer.DialContext(ctx, "tcp4", address)
-		},
 	}
 
 	var db *gorm.DB

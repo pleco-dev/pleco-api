@@ -20,16 +20,14 @@
                   "pm.test('admin login returns 200', function () {",
                   "  pm.response.to.have.status(200);",
                   "});",
-                  "const json = pm.response.json();",
-                  "const data = json.data || {};",
+                  "const loginJson = pm.response.json();",
+                  "const loginData = loginJson.data || {};",
                   "pm.test('admin login returns access token and refresh cookie', function () {",
-                  "  pm.expect(data.access_token).to.be.a('string').and.not.empty;",
-                  "  pm.expect(data.refresh_token).to.be.undefined;",
+                  "  pm.expect(loginData.access_token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(loginData.refresh_token).to.be.undefined;",
                   "  pm.expect(pm.response.headers.get('Set-Cookie') || '').to.include('pleco_refresh_token=');",
                   "});",
-                  "pm.environment.set('access_token', data.access_token);",
-                  "console.log('access_token set:', !!data.access_token);",
-                  "console.log('refresh cookie set:', !!(pm.response.headers.get('Set-Cookie') || '').includes('pleco_refresh_token='));"
+                  "pm.environment.set('access_token', loginData.access_token);"
                 ]
               }
             }

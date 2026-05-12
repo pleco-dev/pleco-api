@@ -271,7 +271,8 @@ func TestLogin_Success(t *testing.T) {
 	data, ok := bodyMap["data"].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, "abc", data["access_token"])
-	assert.Equal(t, "xyz", data["refresh_token"])
+	assert.Nil(t, data["refresh_token"])
+	assertRefreshCookie(t, w.Result().Cookies())
 }
 
 func TestLogout_Success(t *testing.T) {
@@ -811,7 +812,8 @@ func TestRefreshToken_Success(t *testing.T) {
 	data, ok := bodyMap["data"].(map[string]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, "new", data["access_token"])
-	assert.Equal(t, "refresh", data["refresh_token"])
+	assert.Nil(t, data["refresh_token"])
+	assertRefreshCookie(t, w.Result().Cookies())
 }
 
 func TestProfile_Success(t *testing.T) {

@@ -101,7 +101,25 @@ func TestAPI_Login_Integration(t *testing.T) {
 
 	data := response["data"].(map[string]interface{})
 	assert.NotEmpty(t, data["access_token"])
-	assert.NotEmpty(t, data["refresh_token"])
+	assert.Nil(t, data["refresh_token"])
+	assertRefreshCookie(t, w.Result().Cookies())
 
 	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func assertRefreshCookie(t *testing.T, cookies []*http.Cookie) {
+	t.Helper()
+
+	for _, cookie := range cookies {
+		if cookie.Name == "pleco_refresh_token" {
+			assert.NotEmpty(t, cookie.Value)
+			assert.True(t, cookie.HttpOnly)
+			assert.True(t, cookie.Secure)
+			assert.Equal(t, http.SameSiteNoneMode, cookie.SameSite)
+			assert.Equal(t, "/", cookie.Path)
+			return
+		}
+	}
+
+	t.Fatal("expected pleco_refresh_token cookie")
 }

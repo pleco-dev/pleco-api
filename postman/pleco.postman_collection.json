@@ -15,10 +15,6 @@
       "value": ""
     },
     {
-      "key": "refresh_token",
-      "value": ""
-    },
-    {
       "key": "device_id",
       "value": "web"
     },
@@ -194,16 +190,13 @@
                   "pm.test('login returns 200', function () {",
                   "  pm.response.to.have.status(200);",
                   "});",
-                  "const loginJson = pm.response.json();",
-                  "const loginData = loginJson.data || {};",
-                  "pm.test('login returns tokens', function () {",
-                  "  pm.expect(loginData.access_token).to.be.a('string').and.not.empty;",
-                  "  pm.expect(loginData.refresh_token).to.be.a('string').and.not.empty;",
+                  "const json = pm.response.json();",
+                  "const data = json.data || {};",
+                  "pm.test('login returns access token and refresh cookie', function () {",
+                  "  pm.expect(data.access_token).to.be.a('string').and.not.empty;",
                   "});",
-                  "if (loginData.access_token) pm.environment.set('access_token', loginData.access_token);",
-                  "if (loginData.refresh_token) pm.environment.set('refresh_token', loginData.refresh_token);",
-                  "console.log('access_token set:', !!loginData.access_token);",
-                  "console.log('refresh_token set:', !!loginData.refresh_token);"
+                  "pm.environment.set('access_token', data.access_token);",
+                  "console.log('access_token set:', !!data.access_token);"
                 ],
                 "type": "text/javascript"
               }
@@ -305,8 +298,7 @@
                   "if (pm.response.code === 200) {",
                   "  pm.environment.set('user_password', 'newsecret123');",
                   "  pm.environment.unset('access_token');",
-                  "  pm.environment.unset('refresh_token');",
-                  "  console.log('password changed; tokens cleared, log in again before calling protected or refresh endpoints');",
+                  "  console.log('password changed; access token cleared; the refresh cookie is cleared by the API when applicable');",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -342,16 +334,13 @@
                   "pm.test('refresh returns 200', function () {",
                   "  pm.response.to.have.status(200);",
                   "});",
-                  "const refreshJson = pm.response.json();",
-                  "const refreshData = refreshJson.data || {};",
-                  "pm.test('refresh returns rotated tokens', function () {",
-                  "  pm.expect(refreshData.access_token).to.be.a('string').and.not.empty;",
-                  "  pm.expect(refreshData.refresh_token).to.be.a('string').and.not.empty;",
+                  "const json = pm.response.json();",
+                  "const data = json.data || {};",
+                  "pm.test('refresh returns access token and refresh cookie', function () {",
+                  "  pm.expect(data.access_token).to.be.a('string').and.not.empty;",
                   "});",
-                  "if (refreshData.access_token) pm.environment.set('access_token', refreshData.access_token);",
-                  "if (refreshData.refresh_token) pm.environment.set('refresh_token', refreshData.refresh_token);",
-                  "console.log('access_token rotated:', !!refreshData.access_token);",
-                  "console.log('refresh_token rotated:', !!refreshData.refresh_token);"
+                  "pm.environment.set('access_token', data.access_token);",
+                  "console.log('access_token set:', !!data.access_token);"
                 ],
                 "type": "text/javascript"
               }
@@ -367,7 +356,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+              "raw": "{}"
             },
             "url": "{{base_url}}/auth/refresh"
           }
@@ -477,14 +466,13 @@
                   "pm.test('logout other sessions returns 200', function () {",
                   "  pm.response.to.have.status(200);",
                   "});",
-                  "var logoutOthersJson = pm.response.json();",
-                  "var logoutOthersData = logoutOthersJson.data || {};",
-                  "pm.test('logout other sessions returns rotated tokens', function () {",
-                  "  pm.expect(logoutOthersData).to.have.property('access_token');",
-                  "  pm.expect(logoutOthersData).to.have.property('refresh_token');",
+                  "const json = pm.response.json();",
+                  "const data = json.data || {};",
+                  "pm.test('logout other sessions returns access token and refresh cookie', function () {",
+                  "  pm.expect(data.access_token).to.be.a('string').and.not.empty;",
                   "});",
-                  "if (logoutOthersData.access_token) pm.environment.set('access_token', logoutOthersData.access_token);",
-                  "if (logoutOthersData.refresh_token) pm.environment.set('refresh_token', logoutOthersData.refresh_token);"
+                  "pm.environment.set('access_token', data.access_token);",
+                  "console.log('access_token set:', !!data.access_token);"
                 ],
                 "type": "text/javascript"
               }
@@ -516,8 +504,7 @@
                   "  pm.response.to.have.status(200);",
                   "});",
                   "pm.environment.unset('access_token');",
-                  "pm.environment.unset('refresh_token');",
-                  "console.log('logout-all cleared stored tokens; log in again before protected requests');"
+                  "console.log('logout-all cleared the access token; the API also clears the refresh cookie');"
                 ],
                 "type": "text/javascript"
               }

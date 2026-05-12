@@ -22,6 +22,12 @@ type AuthHandler struct {
 	Cache         cache.Store
 }
 
+const refreshTokenCookieName = "pleco_refresh_token"
+
+type accessTokenResponse struct {
+	AccessToken string `json:"access_token"`
+}
+
 func NewHandler(authService AuthService, permissionSvc *permission.Service) *AuthHandler {
 	return &AuthHandler{AuthService: authService, PermissionSvc: permissionSvc}
 }
@@ -66,7 +72,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	httpx.Success(c, http.StatusOK, "Login success", tokens, nil)
+	setRefreshTokenCookie(c, tokens.RefreshToken)
+	httpx.Success(c, http.StatusOK, "Login success", accessTokenResponse{AccessToken: tokens.AccessToken}, nil)
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
@@ -88,6 +95,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
+	clearRefreshTokenCookie(c)
 	httpx.Success(c, http.StatusOK, "logout success", nil, nil)
 }
 
@@ -106,6 +114,7 @@ func (h *AuthHandler) LogoutAll(c *gin.Context) {
 		return
 	}
 
+	clearRefreshTokenCookie(c)
 	httpx.Success(c, http.StatusOK, "all sessions revoked", nil, nil)
 }
 
@@ -131,7 +140,8 @@ func (h *AuthHandler) LogoutOtherSessions(c *gin.Context) {
 		return
 	}
 
-	httpx.Success(c, http.StatusOK, "other sessions revoked", tokens, nil)
+	setRefreshTokenCookie(c, tokens.RefreshToken)
+	httpx.Success(c, http.StatusOK, "other sessions revoked", accessTokenResponse{AccessToken: tokens.AccessToken}, nil)
 }
 
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
@@ -139,18 +149,22 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		RefreshToken string `json:"refresh_token"`
 	}
 
-	if err := c.ShouldBindJSON(&body); err != nil {
-		httpx.ValidationError(c, httpx.FormatValidationError(err))
+	if cookieRefreshToken, err := c.Cookie(refreshTokenCookieName); err == nil {
+		body.RefreshToken = cookieRefreshToken
+	} else if err := c.ShouldBindJSON(&body); err != nil {
+		httpx.Error(c, http.StatusUnauthorized, "refresh token required")
 		return
 	}
 
 	tokens, err := h.AuthService.RefreshToken(body.RefreshToken)
 	if err != nil {
+		clearRefreshTokenCookie(c)
 		httpx.Error(c, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	httpx.Success(c, http.StatusOK, "Refresh token success", tokens, nil)
+	setRefreshTokenCookie(c, tokens.RefreshToken)
+	httpx.Success(c, http.StatusOK, "Refresh token success", accessTokenResponse{AccessToken: tokens.AccessToken}, nil)
 }
 
 func (h *AuthHandler) ListSessions(c *gin.Context) {
@@ -335,7 +349,8 @@ func (h *AuthHandler) SocialLogin(c *gin.Context) {
 		return
 	}
 
-	httpx.Success(c, http.StatusOK, "Social login success", tokens, nil)
+	setRefreshTokenCookie(c, tokens.RefreshToken)
+	httpx.Success(c, http.StatusOK, "Social login success", accessTokenResponse{AccessToken: tokens.AccessToken}, nil)
 }
 
 func (h *AuthHandler) SocialAccount(c *gin.Context) {
@@ -393,4 +408,28 @@ type socialAccountResponse struct {
 	Provider       string `json:"provider"`
 	ProviderUserID string `json:"provider_user_id"`
 	AvatarURL      string `json:"avatar_url"`
+}
+
+func setRefreshTokenCookie(c *gin.Context, refreshToken string) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     refreshTokenCookieName,
+		Value:    refreshToken,
+		Path:     "/",
+		MaxAge:   int((7 * 24 * time.Hour).Seconds()),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	})
+}
+
+func clearRefreshTokenCookie(c *gin.Context) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     refreshTokenCookieName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	})
 }

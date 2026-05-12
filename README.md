@@ -29,7 +29,7 @@ Pleco is designed for teams who want a practical starting point for a real backe
 
 **Authentication:**
 - User registration and login
-- Access token and refresh token flow with token rotation
+- Access token and HttpOnly refresh-cookie flow with token rotation
 - Per-device session management - list, revoke, and logout individual sessions
 - Self profile update and password change
 - Email verification, forgot password, and reset password
@@ -195,6 +195,7 @@ AI_TIMEOUT_SECONDS=30
 
 - `DATABASE_URL` is the primary database connection setting.
 - `TRUSTED_PROXIES` controls which proxy hops are trusted for forwarded client IP handling.
+- `CORS_ALLOWED_ORIGINS` should list explicit frontend origins for browser clients; credentialed refresh cookies cannot be used safely with wildcard CORS.
 - The app validates critical configuration at startup and exits early when required values are missing.
 - `APP_BASE_URL` is used for backend-generated links such as email verification.
 - `FRONTEND_URL` is used for password reset links when you have a separate frontend.
@@ -366,8 +367,8 @@ POST /auth/admin/audit-logs/investigations
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/auth/register` | Register a new user |
-| POST | `/auth/login` | Login and receive tokens |
-| POST | `/auth/refresh` | Refresh access token |
+| POST | `/auth/login` | Login, receive an access token, and set the refresh cookie |
+| POST | `/auth/refresh` | Refresh access token using the refresh cookie |
 | GET | `/auth/verify` | Verify email address |
 | POST | `/auth/resend-verification` | Resend verification email |
 | POST | `/auth/forgot-password` | Request password reset |
@@ -418,7 +419,8 @@ POST /auth/admin/audit-logs/investigations
 
 - Authenticated routes require `Authorization: Bearer <access_token>`
 - Admin routes require an access token that belongs to an admin user
-- Refresh tokens are only valid for `POST /auth/refresh`
+- Refresh tokens are issued as the `pleco_refresh_token` HttpOnly cookie and are only valid for `POST /auth/refresh`
+- Browser clients must send credentials/cookies when calling login, refresh, logout, or logout-others
 - Access tokens must include the server-issued token-version claim
 - After password reset, password change, role change, or `logout-all`, previously issued tokens can start returning `401` immediately
 - Success responses use the envelope: `status`, `message`, optional `data`, optional `meta`
@@ -467,13 +469,14 @@ X-Device-ID: web
 
 Response:
 
+The response also sets `Set-Cookie: pleco_refresh_token=...; HttpOnly; Secure; SameSite=None; Path=/`.
+
 ```json
 {
   "status": "success",
   "message": "Login success",
   "data": {
-    "access_token": "<jwt>",
-    "refresh_token": "<jwt>"
+    "access_token": "<jwt>"
   }
 }
 ```
@@ -545,10 +548,12 @@ curl -X POST "$BASE_URL/auth/login" \
   }'
 ```
 
-Store tokens for use in subsequent requests:
+Store the access token and refresh cookie for use in subsequent requests:
 
 ```bash
-TOKENS=$(curl -s -X POST "$BASE_URL/auth/login" \
+COOKIE_JAR=/tmp/pleco-cookies.txt
+
+TOKENS=$(curl -s -c "$COOKIE_JAR" -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
   -H "X-Device-ID: web" \
   -d '{
@@ -557,7 +562,6 @@ TOKENS=$(curl -s -X POST "$BASE_URL/auth/login" \
   }')
 
 ACCESS_TOKEN=$(echo $TOKENS | jq -r '.data.access_token')
-REFRESH_TOKEN=$(echo $TOKENS | jq -r '.data.refresh_token')
 ```
 
 ### Profile
@@ -595,8 +599,13 @@ After a successful password change, existing refresh tokens are revoked. Log in 
 ```bash
 curl -X POST "$BASE_URL/auth/refresh" \
   -H "Content-Type: application/json" \
-  -d "{\"refresh_token\": \"$REFRESH_TOKEN\"}"
+  -H "X-Device-ID: web" \
+  -b "$COOKIE_JAR" \
+  -c "$COOKIE_JAR" \
+  -d '{}'
 ```
+
+`POST /auth/refresh` also accepts the legacy JSON `refresh_token` body for non-browser clients, but browser and dashboard clients should rely on the HttpOnly cookie.
 
 ### Verify Email
 
@@ -940,7 +949,7 @@ Recommended flow:
 1. `Health`
 2. `Register`
 3. `Verify Email` — or mark the user as verified directly in the database
-4. `Login` — stores `access_token` and `refresh_token` automatically
+4. `Login` — stores `access_token` and the `pleco_refresh_token` cookie automatically
 5. `Profile`
 6. `Update Profile`
 7. `Change Password`
@@ -952,8 +961,8 @@ Recommended flow:
 13. `AI Investigate` — run an investigation over a filtered log window
 
 Notes:
-- `Login` and `Refresh Token` update the Postman environment variables for `access_token` and `refresh_token` automatically.
-- `Logout Other Sessions` also rotates and stores fresh `access_token` and `refresh_token`.
+- `Login` and `Refresh Token` update the Postman environment variable for `access_token`; the refresh token is managed by Postman's cookie jar as `pleco_refresh_token`.
+- `Logout Other Sessions` also rotates the refresh cookie and stores a fresh `access_token`.
 - `Verify Email` and `Reset Password` require manual token input unless you automate email capture.
 - Admin endpoints require an admin access token.
 - The AI investigate endpoint requires `AI_ENABLED=true` in your environment.
@@ -1058,7 +1067,7 @@ go build -tags netgo -ldflags '-s -w' -o app ./cmd/api
 - The app sets baseline security headers including CSP, HSTS (on HTTPS), `X-Content-Type-Options`, and `X-Frame-Options`.
 - Request IDs are propagated via the `X-Request-ID` header for tracing across the gateway and backend.
 - Trusted proxy handling is configurable through `TRUSTED_PROXIES` so client IP-based audit and rate limiting work correctly behind a gateway.
-- Refresh tokens are rotated on every use — old tokens are invalidated immediately.
+- Refresh tokens are stored in the `pleco_refresh_token` HttpOnly cookie and rotated on every use — old tokens are invalidated immediately.
 - Password reset tokens are invalidated if the user changes their password after the token was issued.
 
 ---
@@ -1079,7 +1088,7 @@ go build -tags netgo -ldflags '-s -w' -o app ./cmd/api
 **`invalid token` on `/auth/profile`**
 
 Usually caused by a stale or incorrect token:
-- A `refresh_token` was used instead of an `access_token`
+- A refresh cookie value was used as a bearer token instead of `data.access_token`
 - The access token has expired (15-minute window)
 - The token was not stored correctly in Postman
 

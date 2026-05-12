@@ -108,10 +108,15 @@ paths:
       responses:
         '200':
           description: Login success
+          headers:
+            Set-Cookie:
+              description: HttpOnly refresh-token cookie named `pleco_refresh_token`
+              schema:
+                type: string
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EnvelopeAuthTokens'
+                $ref: '#/components/schemas/EnvelopeAccessToken'
         '401':
           description: Invalid credentials or unverified email
           content:
@@ -299,9 +304,10 @@ paths:
   /auth/refresh:
     post:
       tags: [Auth]
-      summary: Refresh access and refresh token pair
+      summary: Refresh access token and rotate refresh cookie
+      description: Browser clients should send the `pleco_refresh_token` HttpOnly cookie. The JSON body is retained as a legacy fallback for non-browser clients.
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
@@ -309,10 +315,15 @@ paths:
       responses:
         '200':
           description: Refresh success
+          headers:
+            Set-Cookie:
+              description: Rotated HttpOnly refresh-token cookie named `pleco_refresh_token`
+              schema:
+                type: string
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EnvelopeAuthTokens'
+                $ref: '#/components/schemas/EnvelopeAccessToken'
         '401':
           description: Invalid refresh token
           content:
@@ -371,7 +382,7 @@ paths:
     post:
       tags: [Auth]
       summary: Revoke all active sessions except the current device
-      description: Keeps the current device session, revokes refresh-token-backed sessions on other devices, and rotates tokens for the current device.
+      description: Keeps the current device session, revokes refresh-token-backed sessions on other devices, rotates the refresh cookie, and returns a fresh access token.
       security:
         - bearerAuth: []
       parameters:
@@ -382,11 +393,16 @@ paths:
             type: string
       responses:
         '200':
-          description: Other sessions revoked and current device tokens rotated
+          description: Other sessions revoked and current device refresh cookie rotated
+          headers:
+            Set-Cookie:
+              description: Rotated HttpOnly refresh-token cookie named `pleco_refresh_token`
+              schema:
+                type: string
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EnvelopeAuthTokens'
+                $ref: '#/components/schemas/EnvelopeAccessToken'
         '400':
           description: Missing device id
           content:
@@ -449,10 +465,15 @@ paths:
       responses:
         '200':
           description: Social login success
+          headers:
+            Set-Cookie:
+              description: HttpOnly refresh-token cookie named `pleco_refresh_token`
+              schema:
+                type: string
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EnvelopeAuthTokens'
+                $ref: '#/components/schemas/EnvelopeAccessToken'
         '400':
           description: Invalid token, unsupported provider, or missing provider configuration
           content:
@@ -1057,10 +1078,10 @@ components:
           format: password
     RefreshRequest:
       type: object
-      required: [refresh_token]
       properties:
         refresh_token:
           type: string
+          description: Legacy non-browser fallback. Browser clients should use the `pleco_refresh_token` HttpOnly cookie instead.
     EmailRequest:
       type: object
       required: [email]
@@ -1137,12 +1158,10 @@ components:
           enum: [admin, user]
         is_verified:
           type: boolean
-    AuthTokens:
+    AccessToken:
       type: object
       properties:
         access_token:
-          type: string
-        refresh_token:
           type: string
     Session:
       type: object
@@ -1428,7 +1447,7 @@ components:
             status:
               type: string
               example: ok
-    EnvelopeAuthTokens:
+    EnvelopeAccessToken:
       type: object
       properties:
         status:
@@ -1437,7 +1456,7 @@ components:
         message:
           type: string
         data:
-          $ref: '#/components/schemas/AuthTokens'
+          $ref: '#/components/schemas/AccessToken'
     EnvelopeSessions:
       type: object
       properties:

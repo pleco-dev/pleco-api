@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"pleco-api/internal/modules/audit"
+	token "pleco-api/internal/modules/token"
 	"pleco-api/internal/utils"
 
 	"gorm.io/gorm"
@@ -192,22 +193,55 @@ func (s *authService) RefreshToken(oldRefreshToken string) (*AuthTokens, error) 
 	if matchedToken.UserID != uid {
 		return nil, ErrInvalidRefreshToken
 	}
+	if matchedToken.RevokedAt != nil {
+		if err := s.handleRefreshTokenReuse(matchedToken); err != nil {
+			return nil, err
+		}
+		return nil, ErrRefreshTokenReuse
+	}
 
 	if time.Now().After(matchedToken.ExpiredAt) {
 		return nil, ErrRefreshTokenExpired
 	}
 
-	if err := s.RefreshTokenRepo.DeleteByID(matchedToken.ID); err != nil {
-		return nil, err
-	}
+	var newTokens *AuthTokens
+	if err := s.runUserRefreshTx(func(userRepo userRepositoryTx, refreshRepo refreshTokenRepositoryTx) error {
+		currentUser, err := userRepo.FindByID(uid)
+		if err != nil {
+			return err
+		}
 
-	user, err := s.UserRepo.FindByID(uid)
-	if err != nil {
-		return nil, err
-	}
+		issued, replacementToken, err := s.buildTokenPair(
+			uid,
+			currentUser.Role,
+			currentUser.AccessTokenVersion,
+			matchedToken.DeviceID,
+			matchedToken.UserAgent,
+			matchedToken.IPAddress,
+			matchedToken.FamilyID,
+			&matchedToken.ID,
+		)
+		if err != nil {
+			return err
+		}
 
-	newTokens, err := s.issueTokens(uid, user.Role, user.AccessTokenVersion, matchedToken.DeviceID, matchedToken.UserAgent, matchedToken.IPAddress)
-	if err != nil {
+		if err := s.persistRefreshToken(refreshRepo, uid, matchedToken.DeviceID, false, replacementToken); err != nil {
+			return err
+		}
+
+		if err := refreshRepo.RevokeByID(matchedToken.ID, &replacementToken.ID, "rotated"); err != nil {
+			return err
+		}
+
+		newTokens = issued
+		return nil
+	}); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if reuseErr := s.handleRefreshTokenReuse(matchedToken); reuseErr != nil {
+				return nil, reuseErr
+			}
+			return nil, ErrRefreshTokenReuse
+		}
 		return nil, err
 	}
 
@@ -223,4 +257,27 @@ func (s *authService) RefreshToken(oldRefreshToken string) (*AuthTokens, error) 
 	})
 
 	return newTokens, nil
+}
+
+func (s *authService) handleRefreshTokenReuse(matchedToken *token.RefreshToken) error {
+	if matchedToken == nil {
+		return nil
+	}
+
+	return s.runUserRefreshTx(func(userRepo userRepositoryTx, refreshRepo refreshTokenRepositoryTx) error {
+		user, err := userRepo.FindByID(matchedToken.UserID)
+		if err != nil {
+			return err
+		}
+
+		user.AccessTokenVersion++
+		if err := userRepo.Update(user); err != nil {
+			return err
+		}
+
+		if matchedToken.FamilyID == "" {
+			return refreshRepo.DeleteByUser(matchedToken.UserID)
+		}
+		return refreshRepo.RevokeFamily(matchedToken.UserID, matchedToken.FamilyID, "reuse_detected")
+	})
 }

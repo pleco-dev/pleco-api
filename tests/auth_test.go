@@ -34,6 +34,8 @@ type stubRefreshTokenRepo struct {
 	findByUserAndDevice func(userID uint, deviceID string) (*token.RefreshToken, error)
 	findByTokenHash     func(tokenHash string) (*token.RefreshToken, error)
 	findByUser          func(userID uint) ([]token.RefreshToken, error)
+	revokeByID          func(id uint, replacedByTokenID *uint, reason string) error
+	revokeFamily        func(userID uint, familyID string, reason string) error
 	deleteByID          func(id uint) error
 	deleteByUserAndID   func(userID, id uint) error
 	deleteByUserDevice  func(userID uint, deviceID string) error
@@ -74,6 +76,20 @@ func (s *stubRefreshTokenRepo) FindByUser(userID uint) ([]token.RefreshToken, er
 		return s.findByUser(userID)
 	}
 	return nil, nil
+}
+
+func (s *stubRefreshTokenRepo) RevokeByID(id uint, replacedByTokenID *uint, reason string) error {
+	if s.revokeByID != nil {
+		return s.revokeByID(id, replacedByTokenID, reason)
+	}
+	return nil
+}
+
+func (s *stubRefreshTokenRepo) RevokeFamily(userID uint, familyID string, reason string) error {
+	if s.revokeFamily != nil {
+		return s.revokeFamily(userID, familyID, reason)
+	}
+	return nil
 }
 
 func (s *stubRefreshTokenRepo) DeleteByID(id uint) error {
@@ -814,6 +830,138 @@ func TestRefreshToken_Success(t *testing.T) {
 	assert.Equal(t, "new", data["access_token"])
 	assert.Nil(t, data["refresh_token"])
 	assertRefreshCookie(t, w.Result().Cookies())
+}
+
+func TestAuthService_RefreshToken_RotatesWithinFamily(t *testing.T) {
+	jwtService := services.NewJWTService([]byte("super_secret_key_123_must_be_32_bytes_long_minimum"))
+
+	var savedToken *token.RefreshToken
+	var replacedByID uint
+
+	refreshRepo := &stubRefreshTokenRepo{
+		findByTokenHash: func(tokenHash string) (*token.RefreshToken, error) {
+			assert.NotEmpty(t, tokenHash)
+			return &token.RefreshToken{
+				Model:     gorm.Model{ID: 7},
+				UserID:    5,
+				FamilyID:  "family-123",
+				DeviceID:  "web",
+				UserAgent: "Browser",
+				IPAddress: "127.0.0.1",
+				ExpiredAt: time.Now().Add(time.Hour),
+			}, nil
+		},
+		save: func(tk *token.RefreshToken) error {
+			tk.Model.ID = 8
+			savedToken = tk
+			return nil
+		},
+		revokeByID: func(id uint, nextID *uint, reason string) error {
+			assert.Equal(t, uint(7), id)
+			require.NotNil(t, nextID)
+			replacedByID = *nextID
+			assert.Equal(t, "rotated", reason)
+			return nil
+		},
+	}
+	userRepo := &stubUserRepo{
+		findByID: func(id uint) (*user.User, error) {
+			assert.Equal(t, uint(5), id)
+			return &user.User{
+				Model:              gorm.Model{ID: id},
+				Role:               "user",
+				AccessTokenVersion: 2,
+			}, nil
+		},
+	}
+
+	service := auth.NewAuthService(
+		nil,
+		userRepo,
+		refreshRepo,
+		&stubEmailVerificationRepo{},
+		&stubSocialRepo{},
+		jwtService,
+		nil,
+		nil,
+		config.AppConfig{AccessTokenExpiryMinutes: 15},
+	)
+
+	oldRefreshToken, err := jwtService.GenerateToken(5, "user", 7*24*time.Hour, auth.TokenRefresh, 2)
+	require.NoError(t, err)
+
+	tokens, err := service.RefreshToken(oldRefreshToken)
+
+	require.NoError(t, err)
+	require.NotNil(t, tokens)
+	require.NotNil(t, savedToken)
+	assert.Equal(t, "family-123", savedToken.FamilyID)
+	require.NotNil(t, savedToken.RotatedFromTokenID)
+	assert.Equal(t, uint(7), *savedToken.RotatedFromTokenID)
+	assert.Equal(t, uint(8), replacedByID)
+}
+
+func TestAuthService_RefreshToken_ReuseRevokesFamily(t *testing.T) {
+	jwtService := services.NewJWTService([]byte("super_secret_key_123_must_be_32_bytes_long_minimum"))
+
+	updatedVersion := uint(0)
+	reusedFamily := ""
+
+	refreshRepo := &stubRefreshTokenRepo{
+		findByTokenHash: func(tokenHash string) (*token.RefreshToken, error) {
+			assert.NotEmpty(t, tokenHash)
+			now := time.Now().Add(-time.Minute)
+			return &token.RefreshToken{
+				Model:        gorm.Model{ID: 9},
+				UserID:       5,
+				FamilyID:     "family-xyz",
+				RevokedAt:    &now,
+				RevokeReason: "rotated",
+				ExpiredAt:    time.Now().Add(time.Hour),
+			}, nil
+		},
+		revokeFamily: func(userID uint, familyID string, reason string) error {
+			assert.Equal(t, uint(5), userID)
+			reusedFamily = familyID
+			assert.Equal(t, "reuse_detected", reason)
+			return nil
+		},
+	}
+	userRepo := &stubUserRepo{
+		findByID: func(id uint) (*user.User, error) {
+			return &user.User{
+				Model:              gorm.Model{ID: id},
+				Role:               "user",
+				AccessTokenVersion: 4,
+			}, nil
+		},
+		update: func(u *user.User) error {
+			updatedVersion = u.AccessTokenVersion
+			return nil
+		},
+	}
+
+	service := auth.NewAuthService(
+		nil,
+		userRepo,
+		refreshRepo,
+		&stubEmailVerificationRepo{},
+		&stubSocialRepo{},
+		jwtService,
+		nil,
+		nil,
+		config.AppConfig{},
+	)
+
+	oldRefreshToken, err := jwtService.GenerateToken(5, "user", 7*24*time.Hour, auth.TokenRefresh, 4)
+	require.NoError(t, err)
+
+	tokens, err := service.RefreshToken(oldRefreshToken)
+
+	assert.Nil(t, tokens)
+	assert.EqualError(t, err, "refresh token reuse detected")
+	assert.Equal(t, "family-xyz", reusedFamily)
+	assert.Equal(t, uint(5), updatedVersion)
 }
 
 func TestProfile_Success(t *testing.T) {

@@ -191,6 +191,41 @@ func (s *authService) GetProfile(userID uint) (*userModule.User, error) {
 }
 
 func (s *authService) issueTokens(userID uint, role string, accessTokenVersion uint, deviceID, userAgent, ipAddress string) (*AuthTokens, error) {
+	tokens, _, err := s.issueTokensWithFamily(userID, role, accessTokenVersion, deviceID, userAgent, ipAddress, "", nil, true)
+	return tokens, err
+}
+
+func (s *authService) issueTokensWithFamily(
+	userID uint,
+	role string,
+	accessTokenVersion uint,
+	deviceID, userAgent, ipAddress string,
+	familyID string,
+	rotatedFromTokenID *uint,
+	replaceExistingDevice bool,
+) (*AuthTokens, *tokenModule.RefreshToken, error) {
+	tokens, refreshTokenModel, err := s.buildTokenPair(userID, role, accessTokenVersion, deviceID, userAgent, ipAddress, familyID, rotatedFromTokenID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if err := s.runUserRefreshTx(func(_ userRepositoryTx, refreshRepo refreshTokenRepositoryTx) error {
+		return s.persistRefreshToken(refreshRepo, userID, deviceID, replaceExistingDevice, refreshTokenModel)
+	}); err != nil {
+		return nil, nil, err
+	}
+
+	return tokens, refreshTokenModel, nil
+}
+
+func (s *authService) buildTokenPair(
+	userID uint,
+	role string,
+	accessTokenVersion uint,
+	deviceID, userAgent, ipAddress string,
+	familyID string,
+	rotatedFromTokenID *uint,
+) (*AuthTokens, *tokenModule.RefreshToken, error) {
 	expiry := time.Duration(s.Cfg.AccessTokenExpiryMinutes) * time.Minute
 	if expiry == 0 {
 		expiry = 15 * time.Minute // default fallback
@@ -198,37 +233,46 @@ func (s *authService) issueTokens(userID uint, role string, accessTokenVersion u
 
 	accessToken, err := s.JWT.GenerateToken(userID, role, expiry, TokenAccess, accessTokenVersion)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	refreshToken, err := s.JWT.GenerateToken(userID, role, 7*24*time.Hour, TokenRefresh, accessTokenVersion)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	if familyID == "" {
+		familyID = uuid.NewString()
 	}
 
 	tokenHash := utils.HashToken(refreshToken)
 	refreshTokenModel := &tokenModule.RefreshToken{
-		UserID:    userID,
-		TokenHash: tokenHash,
-		DeviceID:  deviceID,
-		UserAgent: userAgent,
-		IPAddress: ipAddress,
-		ExpiredAt: time.Now().Add(7 * 24 * time.Hour),
-	}
-
-	if err := s.runUserRefreshTx(func(_ userRepositoryTx, refreshRepo refreshTokenRepositoryTx) error {
-		if deviceID != "" {
-			if err := refreshRepo.DeleteByUserAndDevice(userID, deviceID); err != nil {
-				return err
-			}
-		}
-		return refreshRepo.Save(refreshTokenModel)
-	}); err != nil {
-		return nil, err
+		UserID:             userID,
+		TokenHash:          tokenHash,
+		FamilyID:           familyID,
+		RotatedFromTokenID: rotatedFromTokenID,
+		DeviceID:           deviceID,
+		UserAgent:          userAgent,
+		IPAddress:          ipAddress,
+		ExpiredAt:          time.Now().Add(7 * 24 * time.Hour),
 	}
 
 	return &AuthTokens{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-	}, nil
+	}, refreshTokenModel, nil
+}
+
+func (s *authService) persistRefreshToken(
+	refreshRepo refreshTokenRepositoryTx,
+	userID uint,
+	deviceID string,
+	replaceExistingDevice bool,
+	refreshTokenModel *tokenModule.RefreshToken,
+) error {
+	if replaceExistingDevice && deviceID != "" {
+		if err := refreshRepo.DeleteByUserAndDevice(userID, deviceID); err != nil {
+			return err
+		}
+	}
+	return refreshRepo.Save(refreshTokenModel)
 }

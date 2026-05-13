@@ -26,6 +26,8 @@ type userRepositoryTx interface {
 
 type refreshTokenRepositoryTx interface {
 	Save(token *tokenModule.RefreshToken) error
+	RevokeByID(id uint, replacedByTokenID *uint, reason string) error
+	RevokeFamily(userID uint, familyID string, reason string) error
 	DeleteByUser(userID uint) error
 	DeleteByUserAndDevice(userID uint, deviceID string) error
 	DeleteByUserExceptDevice(userID uint, deviceID string) error

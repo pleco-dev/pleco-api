@@ -10,5 +10,6 @@ var (
 	ErrInvalidTokenType    = errors.New("invalid token type")
 	ErrInvalidTokenClaims  = errors.New("invalid token")
 	ErrRefreshTokenExpired = errors.New("refresh token expired")
+	ErrRefreshTokenReuse   = errors.New("refresh token reuse detected")
 	ErrAccountLocked       = errors.New("account locked due to too many failed attempts")
 )

@@ -1081,11 +1081,11 @@ go build -tags netgo -ldflags '-s -w' -o app ./cmd/api
 - Use secret managers or platform-managed env vars for production deployments.
 - Rotate any third-party credentials that were ever exposed locally or in git history.
 - Use separate credentials for local, staging, and production environments.
-- The default rate limiter is in-memory and works correctly for a single instance. For multi-instance deployments, replace it with a shared backend such as Redis using the `RateLimitStore` interface.
+- The default rate limiter is in-memory for local single-instance development. When Redis is configured, Pleco switches to a shared Redis-backed store suitable for multi-instance deployments.
 - The app sets baseline security headers including CSP, HSTS (on HTTPS), `X-Content-Type-Options`, and `X-Frame-Options`.
 - Request IDs are propagated via the `X-Request-ID` header for tracing across the gateway and backend.
 - Trusted proxy handling is configurable through `TRUSTED_PROXIES` so client IP-based audit and rate limiting work correctly behind a gateway.
-- Refresh tokens are stored in the `pleco_refresh_token` HttpOnly cookie and rotated on every use — old tokens are invalidated immediately.
+- Refresh tokens are stored in the `pleco_refresh_token` HttpOnly cookie and rotated on every use. Pleco keeps refresh-token family metadata so reuse of an already-rotated token can revoke the whole family and invalidate prior access tokens.
 - Password reset tokens are invalidated if the user changes their password after the token was issued.
 
 ---
@@ -1153,8 +1153,7 @@ go run ./cmd/migrate
 
 ## Roadmap Ideas
 
-- CI validation for migration smoke checks
-- Refresh token family tracking to detect token theft
+- Audit anomaly scoring tuned with real-world operator feedback
 
 ---
 

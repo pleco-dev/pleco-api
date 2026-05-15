@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type JWTService struct {
@@ -22,6 +23,7 @@ func (j *JWTService) GenerateToken(userID uint, role string, duration time.Durat
 		"type":    tokenType,
 		"tv":      accessTokenVersion,
 		"exp":     time.Now().Add(duration).Unix(),
+		"jti":     uuid.NewString(),
 	})
 
 	return token.SignedString(j.Secret)

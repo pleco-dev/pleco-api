@@ -187,6 +187,14 @@ func SeedAdmin(db *gorm.DB, cfg config.AppConfig) {
 		} else {
 			log.Printf("Super Admin user seeded with email: %s", email)
 		}
+	} else {
+		if !user.IsVerified {
+			if err := db.Model(&user).Update("is_verified", true).Error; err != nil {
+				log.Printf("Error updating admin user verified status: %v", err)
+			} else {
+				log.Printf("Super Admin user (%s) verified status updated to true", email)
+			}
+		}
 	}
 	fmt.Println("Admin seeding done")
 }
